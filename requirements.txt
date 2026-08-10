@@ -1,0 +1,9 @@
+docker>=7.1.0
+tqdm>=4.67.0
+pathlib
+numpy
+pandas
+matplotlib
+seaborn
+plotly
+nbformat
