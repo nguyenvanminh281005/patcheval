@@ -33,5 +33,8 @@ python "${SCRIPT_DIR}/process_data.py" \
     --patch_file "$PROCESS_DATA" \
     --input_file "$DATASET" \
     --max_workers "${MAX_WORKERS:-4}" \
-    --log_level "${LOG_LEVEL:-INFO}"
+    --log_level "${LOG_LEVEL:-INFO}" \
+    --skip_existing \
+    --limit 5 \
+    --remove_images
 )

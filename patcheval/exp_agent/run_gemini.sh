@@ -186,16 +186,34 @@ run_poc() {
       --patch_file "$patches_jsonl" \
       --input_file "$GO_DATASET" \
       --max_workers "${MAX_WORKERS:-4}" \
-      --log_level "${LOG_LEVEL:-INFO}"
+      --log_level "${LOG_LEVEL:-INFO}" \
+      --skip_existing \
+      --limit "$limit" \
+      --remove_images
   )
+
+  # ── Docker cleanup: remove any leftover containers from the PoC run ──────────
+  echo ""
+  echo "[Step] Cleaning up Docker containers..."
+  local stale_containers
+  stale_containers=$(docker ps -aq --filter "status=exited" --filter "status=created" 2>/dev/null || true)
+  if [[ -n "$stale_containers" ]]; then
+    # shellcheck disable=SC2086
+    docker rm -f $stale_containers 2>/dev/null && echo "[✓] Docker containers removed." || echo "[!] Some containers could not be removed."
+  else
+    echo "[✓] No stale Docker containers to remove."
+  fi
 
   echo ""
   echo "━━━ RESULTS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   local report="$SCRIPT_DIR/../evaluation/results/${label}/summary_report.txt"
+  local report2="$SCRIPT_DIR/../evaluation/evaluation_output/results/${label}/summary_report.txt"
   if [[ -f "$report" ]]; then
     cat "$report"
+  elif [[ -f "$report2" ]]; then
+    cat "$report2"
   else
-    echo "[!] Report not found at $report — check evaluation/results/${label}/"
+    echo "[!] Report not found at $report or $report2 — check evaluation/results/${label}/"
   fi
 }
 

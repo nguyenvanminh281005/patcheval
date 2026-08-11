@@ -30,6 +30,7 @@ python "${SCRIPT_DIR}/patch_agent_runner.py" \
   --input "$DATASET" \
   --output-dir "$OUTPUT_BASE" \
   --limit "${LIMIT:--1}" \
+  --offset "${OFFSET:-0}" \
   --concurrency "${CONCURRENCY:-4}" \
   --run-label "$PREFIX" \
   "${mount_args[@]}" \

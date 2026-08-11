@@ -333,6 +333,8 @@ async def _run_one(sample: dict[str, Any], index: int, args: argparse.Namespace,
 async def _main(args: argparse.Namespace) -> int:
     samples = _read_json(Path(args.input))
     indexed = list(enumerate(samples))
+    if args.offset > 0:
+        indexed = indexed[args.offset:]
     selected = indexed if args.limit < 0 else indexed[:args.limit]
     _require_dataset_images([sample for _, sample in selected])
     run_root = Path(args.output_dir) / f"{time.strftime('%Y%m%d_%H%M%S')}-{_safe_name(args.run_label or 'run')}"
@@ -364,6 +366,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--input", default="../datasets/patcheval_verified.json")
     p.add_argument("--output-dir", default="outputs")
     p.add_argument("--limit", type=int, default=1)
+    p.add_argument("--offset", type=int, default=0)
     p.add_argument("--concurrency", type=int, default=4)
     p.add_argument("--run-label", default="")
     p.add_argument("--agent-command", required=True)
