@@ -21,6 +21,7 @@ Sub-commands
 import argparse
 import ast
 import csv
+import datetime
 import difflib
 import json
 import os
@@ -51,6 +52,79 @@ def _log(msg: str, log_path: str = "/results/agent_live_status.log") -> None:
             f.write(f"[AGENT LOG] {msg}\n")
     except Exception:
         pass
+
+
+# =====================================================================
+# Token usage persistence
+# =====================================================================
+
+def _token_usage_path(output_path: str) -> str:
+    """Return the companion token usage JSON path for a given .jsonl output path.
+    E.g.  eval_inputs/gogemma_poc.jsonl  →  eval_inputs/gogemma_poc.token_usage.json
+    """
+    p = Path(output_path)
+    return str(p.parent / (p.stem + ".token_usage.json"))
+
+
+def _save_token_usage(
+    output_path: str,
+    cve_rows: list,          # list of per-CVE dicts accumulated during run
+    model: str,
+    provider: str,
+) -> None:
+    """Merge new cve_rows into the companion token_usage.json and write it atomically.
+
+    File schema:
+    {
+      "model":    "poolside/laguna-s-2.1:free",
+      "provider": "openrouter",
+      "updated_at": "2026-08-19T01:11:08",
+      "session_total": { "prompt_tokens": N, "completion_tokens": N, "total_tokens": N },
+      "cves": [
+        { "cve": "CVE-...", "prompt_tokens": N, "completion_tokens": N,
+          "total_tokens": N, "timestamp": "2026-08-19T01:11:08" },
+        ...
+      ]
+    }
+    """
+    usage_path = _token_usage_path(output_path)
+
+    # Load existing data so resume runs accumulate correctly
+    existing: dict = {}
+    if os.path.exists(usage_path):
+        try:
+            with open(usage_path, "r", encoding="utf-8") as f:
+                existing = json.load(f)
+        except Exception:
+            existing = {}
+
+    # Merge: keep existing CVE rows; overwrite if same CVE re-processed
+    existing_by_cve: dict = {r["cve"]: r for r in existing.get("cves", [])}
+    for row in cve_rows:
+        existing_by_cve[row["cve"]] = row
+
+    all_rows = sorted(existing_by_cve.values(), key=lambda r: r.get("timestamp", ""))
+
+    total_prompt     = sum(r.get("prompt_tokens", 0)     for r in all_rows)
+    total_completion = sum(r.get("completion_tokens", 0) for r in all_rows)
+
+    payload = {
+        "model":    model,
+        "provider": provider,
+        "updated_at": datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+        "session_total": {
+            "prompt_tokens":     total_prompt,
+            "completion_tokens": total_completion,
+            "total_tokens":      total_prompt + total_completion,
+        },
+        "cves": all_rows,
+    }
+
+    Path(usage_path).parent.mkdir(parents=True, exist_ok=True)
+    with open(usage_path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2, ensure_ascii=False)
+    print(f"[✓] Token usage saved → {usage_path}  ({len(all_rows)} CVEs total)")
+
 
 
 # =====================================================================
@@ -294,8 +368,10 @@ def _gen_build_prompt(cve_record, vul_entry, lang="python"):
     )
 
 
-def _gen_call_gemini_rest(prompt: str, model: str, api_key: str, max_tokens: int, max_retries: int = 3) -> str:
-    """Call Gemini REST API directly using urllib (no requests dependency)."""
+def _gen_call_gemini_rest(prompt: str, model: str, api_key: str, max_tokens: int, max_retries: int = 3) -> tuple:
+    """Call Gemini REST API directly using urllib (no requests dependency).
+    Returns (text, usage_dict) where usage_dict has prompt_tokens, completion_tokens, total_tokens.
+    """
     url = f"{GEMINI_URL_TMPL.format(model=model)}?key={api_key}"
     payload = json.dumps({
         "contents": [{"parts": [{"text": prompt}]}],
@@ -319,7 +395,13 @@ def _gen_call_gemini_rest(prompt: str, model: str, api_key: str, max_tokens: int
             finish_reason = candidates[0].get("finishReason")
             if not text:
                 raise RuntimeError(f"Empty content (finishReason={finish_reason}).")
-            return text
+            meta = data.get("usageMetadata", {})
+            usage = {
+                "prompt_tokens":     meta.get("promptTokenCount", 0),
+                "completion_tokens": meta.get("candidatesTokenCount", 0),
+                "total_tokens":      meta.get("totalTokenCount", 0),
+            }
+            return text, usage
         except urllib.error.HTTPError as e:
             body = ""
             try:
@@ -343,13 +425,16 @@ def _gen_call_gemini_rest(prompt: str, model: str, api_key: str, max_tokens: int
     raise RuntimeError(f"Gemini call failed after {max_retries} attempts: {last_err}")
 
 
-def _gen_call_openrouter(prompt: str, model: str, api_key: str, max_retries: int = 5) -> str:
-    """Call OpenRouter chat completions API using urllib."""
+def _gen_call_openrouter(prompt: str, model: str, api_key: str, max_tokens: int = 4096, max_retries: int = 5) -> tuple:
+    """Call OpenRouter chat completions API using urllib.
+    Returns (text, usage_dict) where usage_dict has prompt_tokens, completion_tokens, total_tokens.
+    """
     url = "https://openrouter.ai/api/v1/chat/completions"
     payload = json.dumps({
         "model": model,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0,
+        "max_tokens": max_tokens,
     }).encode("utf-8")
     headers = {
         "Content-Type": "application/json",
@@ -364,7 +449,24 @@ def _gen_call_openrouter(prompt: str, model: str, api_key: str, max_retries: int
         try:
             with urllib.request.urlopen(req, timeout=120) as resp:
                 result = json.loads(resp.read().decode("utf-8"))
-            return result["choices"][0]["message"]["content"]
+            # Handle cases where the model returned an error inside the JSON
+            if "error" in result:
+                err_msg = result["error"].get("message", str(result["error"]))
+                raise RuntimeError(f"OpenRouter API error: {err_msg}")
+            choices = result.get("choices", [])
+            if not choices:
+                raise RuntimeError(f"No choices in response: {json.dumps(result)[:300]}")
+            content = choices[0].get("message", {}).get("content", "")
+            if not content:
+                finish_reason = choices[0].get("finish_reason", "unknown")
+                raise RuntimeError(f"Empty content (finish_reason={finish_reason}). Model may not support free tier.")
+            raw_usage = result.get("usage", {})
+            usage = {
+                "prompt_tokens":     raw_usage.get("prompt_tokens", 0),
+                "completion_tokens": raw_usage.get("completion_tokens", 0),
+                "total_tokens":      raw_usage.get("total_tokens", 0),
+            }
+            return content, usage
         except urllib.error.HTTPError as e:
             body = ""
             try:
@@ -372,15 +474,22 @@ def _gen_call_openrouter(prompt: str, model: str, api_key: str, max_retries: int
             except Exception:
                 pass
             if e.code == 429:
-                wait_s = 30 * (2 ** attempt)
+                # Free-tier: start with 15s then grow; avoid hammering the quota
+                wait_s = 15 + attempt * 20
                 print(f"    [429] Rate limited. Waiting {wait_s}s... (attempt {attempt + 1}/{max_retries})")
                 time.sleep(wait_s)
                 last_err = "429 Too Many Requests"
                 continue
             elif e.code == 402:
-                raise RuntimeError("Error 402: OpenRouter credits depleted.")
+                raise RuntimeError("Error 402: OpenRouter credits depleted. Use a :free model or add credits.")
             elif e.code == 400:
                 raise RuntimeError(f"Error 400: Bad request (context length?). {body[:300]}")
+            elif e.code == 503:
+                wait_s = 10 * (attempt + 1)
+                print(f"    [503] Service unavailable. Waiting {wait_s}s... (attempt {attempt + 1}/{max_retries})")
+                time.sleep(wait_s)
+                last_err = f"HTTP 503"
+                continue
             else:
                 last_err = f"HTTP {e.code}: {body[:300]}"
                 print(f"    [Error] {last_err}")
@@ -396,10 +505,13 @@ def _gen_call_openrouter(prompt: str, model: str, api_key: str, max_retries: int
     raise RuntimeError(f"OpenRouter call failed after {max_retries} attempts: {last_err}")
 
 
+
 def _call_llm(provider: str, prompt: str, gemini_model: str = "gemini-2.0-flash",
-              openrouter_model: str = "google/gemma-3-27b-it:free",
-              max_tokens: int = 6000) -> str:
-    """Unified LLM call dispatcher supporting gemini and openrouter providers."""
+              openrouter_model: str = "poolside/laguna-s-2.1:free",
+              max_tokens: int = 6000) -> tuple:
+    """Unified LLM call dispatcher supporting gemini and openrouter providers.
+    Returns (text, usage_dict) where usage_dict has prompt_tokens, completion_tokens, total_tokens.
+    """
     if provider == "gemini":
         api_key = os.environ.get("GEMINI_API_KEY", "")
         if not api_key:
@@ -409,7 +521,7 @@ def _call_llm(provider: str, prompt: str, gemini_model: str = "gemini-2.0-flash"
         api_key = os.environ.get("OPENROUTER_API_KEY", "")
         if not api_key:
             raise SystemExit("OPENROUTER_API_KEY environment variable not set.")
-        return _gen_call_openrouter(prompt, openrouter_model, api_key)
+        return _gen_call_openrouter(prompt, openrouter_model, api_key, max_tokens=max_tokens)
     else:
         raise ValueError(f"Unknown provider: {provider!r}. Choose 'gemini' or 'openrouter'.")
 
@@ -519,14 +631,18 @@ def cmd_generate(args):
         py_items = py_items[: args.limit]
 
     consecutive_429_fails = 0
+    total_prompt_tokens = 0
+    total_completion_tokens = 0
+    token_usage_rows: list = []
+    model_label = getattr(args, "or_model", args.model) if provider == "openrouter" else args.model
     for i, d in enumerate(py_items):
         cve_id = d["cve_id"]
         vul_entry = d["vul_func"][0]
         prompt = _gen_build_prompt(d, vul_entry, lang="python")
         try:
-            raw_output = _call_llm(provider, prompt,
+            raw_output, usage = _call_llm(provider, prompt,
                                    gemini_model=args.model,
-                                   openrouter_model=getattr(args, "or_model", "google/gemma-3-27b-it:free"),
+                                   openrouter_model=getattr(args, "or_model", "poolside/laguna-s-2.1:free"),
                                    max_tokens=args.max_tokens)
             consecutive_429_fails = 0
         except Exception as e:
@@ -538,6 +654,16 @@ def cmd_generate(args):
                     break
             continue
 
+        total_prompt_tokens     += usage.get("prompt_tokens", 0)
+        total_completion_tokens += usage.get("completion_tokens", 0)
+        token_usage_rows.append({
+            "cve":               cve_id,
+            "prompt_tokens":     usage.get("prompt_tokens", 0),
+            "completion_tokens": usage.get("completion_tokens", 0),
+            "total_tokens":      usage.get("total_tokens", 0),
+            "timestamp":         datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+        })
+
         old_snippet = _gen_normalize_trailing_blank(vul_entry["snippet"])
         new_code = _gen_extract_code_block(raw_output)
         new_code = _gen_reindent_to_match(old_snippet, new_code)
@@ -546,19 +672,36 @@ def cmd_generate(args):
             vul_entry["file_path"], old_snippet, new_code,
             start_line=vul_entry.get("start_line", 1),
         )
-        record = {"cve": cve_id, "fix_patch": fix_patch, "language": "Python", "model": args.model}
+        record = {
+            "cve": cve_id, "fix_patch": fix_patch, "language": "Python", "model": args.model,
+            "token_usage": {
+                "prompt_tokens":     usage.get("prompt_tokens", 0),
+                "completion_tokens": usage.get("completion_tokens", 0),
+                "total_tokens":      usage.get("total_tokens", 0),
+            },
+        }
         with open(args.output, "a", encoding="utf-8", newline="\n") as f:
             f.write(json.dumps(record, ensure_ascii=False) + "\n")
-        print(f"[OK] {cve_id}")
+        print(f"[OK] {cve_id}  "
+              f"[tokens: prompt={usage.get('prompt_tokens',0):,}  "
+              f"completion={usage.get('completion_tokens',0):,}  "
+              f"total={usage.get('total_tokens',0):,}]")
 
         if i < len(py_items) - 1:
-            time.sleep(13)  # Gemini free tier: 5 req/min → 12s min, 13s for safety
+            # OpenRouter free tier: ~20 req/min → 3s min; Gemini free: 5 req/min → 13s
+            sleep_s = 3 if provider == "openrouter" else 13
+            time.sleep(sleep_s)
 
     total_now = 0
     if os.path.exists(args.output):
         with open(args.output, encoding="utf-8") as f:
             total_now = sum(1 for _ in f)
     print(f"\nDone. Total CVEs now in {args.output}: {total_now}")
+    print(f"Session tokens — prompt: {total_prompt_tokens:,}  "
+          f"completion: {total_completion_tokens:,}  "
+          f"total: {total_prompt_tokens + total_completion_tokens:,}")
+    if token_usage_rows:
+        _save_token_usage(args.output, token_usage_rows, model_label, provider)
 
 
 def _go_looks_truncated(new_code: str, old_snippet: str) -> bool:
@@ -794,6 +937,9 @@ def cmd_go_generate(args):
     print(f"[INFO] Will generate patches for {len(go_items)} CVEs using provider={provider}")
 
     consecutive_429_fails = 0
+    total_prompt_tokens = 0
+    total_completion_tokens = 0
+    token_usage_rows: list = []
     for i, d in enumerate(go_items):
         cve_id = d["cve_id"]
         vul_entries = d.get("vul_func", [])
@@ -808,9 +954,9 @@ def cmd_go_generate(args):
         print(f"[GEN]  {cve_id}  [{mode_tag}]")
 
         try:
-            raw_output = _call_llm(provider, prompt,
+            raw_output, usage = _call_llm(provider, prompt,
                                    gemini_model=args.model,
-                                   openrouter_model=getattr(args, "or_model", "google/gemma-3-27b-it"),
+                                   openrouter_model=getattr(args, "or_model", "poolside/laguna-s-2.1:free"),
                                    max_tokens=args.max_tokens)
             consecutive_429_fails = 0
         except Exception as e:
@@ -821,6 +967,16 @@ def cmd_go_generate(args):
                     print("\n>>> Likely daily quota exhausted. Stop and retry after midnight (Pacific).\n")
                     break
             continue
+
+        total_prompt_tokens     += usage.get("prompt_tokens", 0)
+        total_completion_tokens += usage.get("completion_tokens", 0)
+        token_usage_rows.append({
+            "cve":               cve_id,
+            "prompt_tokens":     usage.get("prompt_tokens", 0),
+            "completion_tokens": usage.get("completion_tokens", 0),
+            "total_tokens":      usage.get("total_tokens", 0),
+            "timestamp":         datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+        })
 
         old_snippet = _gen_normalize_trailing_blank(vul_entry["snippet"])
 
@@ -845,19 +1001,36 @@ def cmd_go_generate(args):
             continue
 
         model_label = args.model if provider == "gemini" else getattr(args, "or_model", "openrouter")
-        record = {"cve": cve_id, "fix_patch": fix_patch, "language": "Go", "model": model_label}
+        record = {
+            "cve": cve_id, "fix_patch": fix_patch, "language": "Go", "model": model_label,
+            "token_usage": {
+                "prompt_tokens":     usage.get("prompt_tokens", 0),
+                "completion_tokens": usage.get("completion_tokens", 0),
+                "total_tokens":      usage.get("total_tokens", 0),
+            },
+        }
         with open(args.output, "a", encoding="utf-8", newline="\n") as f:
             f.write(json.dumps(record, ensure_ascii=False) + "\n")
-        print(f"[OK]   {cve_id}")
+        print(f"[OK]   {cve_id}  "
+              f"[tokens: prompt={usage.get('prompt_tokens',0):,}  "
+              f"completion={usage.get('completion_tokens',0):,}  "
+              f"total={usage.get('total_tokens',0):,}]")
 
         if i < len(go_items) - 1:
-            time.sleep(13)
+            # OpenRouter free tier: ~20 req/min → 3s min; Gemini free: 5 req/min → 13s
+            sleep_s = 3 if provider == "openrouter" else 13
+            time.sleep(sleep_s)
 
     total_now = 0
     if os.path.exists(args.output):
         with open(args.output, encoding="utf-8") as f:
             total_now = sum(1 for _ in f)
     print(f"\nDone. Total Go CVEs now in {args.output}: {total_now}")
+    print(f"Session tokens — prompt: {total_prompt_tokens:,}  "
+          f"completion: {total_completion_tokens:,}  "
+          f"total: {total_prompt_tokens + total_completion_tokens:,}")
+    if token_usage_rows:
+        _save_token_usage(args.output, token_usage_rows, model_label, provider)
 
 
 # =====================================================================
@@ -1001,6 +1174,10 @@ def cmd_js_generate(args):
     print(f"[INFO] Will generate patches for {len(js_items)} CVEs using provider={provider}")
 
     consecutive_429_fails = 0
+    total_prompt_tokens = 0
+    total_completion_tokens = 0
+    token_usage_rows: list = []
+    model_label = getattr(args, "or_model", args.model) if provider == "openrouter" else args.model
     for i, d in enumerate(js_items):
         cve_id      = d["cve_id"]
         vul_entries = d.get("vul_func", [])
@@ -1015,10 +1192,10 @@ def cmd_js_generate(args):
         print(f"[GEN]  {cve_id}  [{mode_tag}]")
 
         try:
-            raw_output = _call_llm(
+            raw_output, usage = _call_llm(
                 provider, prompt,
                 gemini_model=args.model,
-                openrouter_model=getattr(args, "or_model", "google/gemma-3-27b-it"),
+                openrouter_model=getattr(args, "or_model", "poolside/laguna-s-2.1:free"),
                 max_tokens=args.max_tokens,
             )
             consecutive_429_fails = 0
@@ -1030,6 +1207,16 @@ def cmd_js_generate(args):
                     print("\n>>> Likely daily quota exhausted. Stop and retry after midnight (Pacific).\n")
                     break
             continue
+
+        total_prompt_tokens     += usage.get("prompt_tokens", 0)
+        total_completion_tokens += usage.get("completion_tokens", 0)
+        token_usage_rows.append({
+            "cve":               cve_id,
+            "prompt_tokens":     usage.get("prompt_tokens", 0),
+            "completion_tokens": usage.get("completion_tokens", 0),
+            "total_tokens":      usage.get("total_tokens", 0),
+            "timestamp":         datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+        })
 
         old_snippet = _gen_normalize_trailing_blank(vul_entry["snippet"])
 
@@ -1051,20 +1238,36 @@ def cmd_js_generate(args):
             print(f"[WARN] {cve_id}: empty patch generated, skipping")
             continue
 
-        model_label = args.model if provider == "gemini" else getattr(args, "or_model", "openrouter")
-        record = {"cve": cve_id, "fix_patch": fix_patch, "language": "JavaScript", "model": model_label}
+        record = {
+            "cve": cve_id, "fix_patch": fix_patch, "language": "JavaScript", "model": model_label,
+            "token_usage": {
+                "prompt_tokens":     usage.get("prompt_tokens", 0),
+                "completion_tokens": usage.get("completion_tokens", 0),
+                "total_tokens":      usage.get("total_tokens", 0),
+            },
+        }
         with open(args.output, "a", encoding="utf-8", newline="\n") as f:
             f.write(json.dumps(record, ensure_ascii=False) + "\n")
-        print(f"[OK]   {cve_id}")
+        print(f"[OK]   {cve_id}  "
+              f"[tokens: prompt={usage.get('prompt_tokens',0):,}  "
+              f"completion={usage.get('completion_tokens',0):,}  "
+              f"total={usage.get('total_tokens',0):,}]")
 
         if i < len(js_items) - 1:
-            time.sleep(13)
+            # OpenRouter free tier: ~20 req/min → 3s min; Gemini free: 5 req/min → 13s
+            sleep_s = 3 if provider == "openrouter" else 13
+            time.sleep(sleep_s)
 
     total_now = 0
     if os.path.exists(args.output):
         with open(args.output, encoding="utf-8") as f:
             total_now = sum(1 for _ in f)
     print(f"\nDone. Total JavaScript CVEs now in {args.output}: {total_now}")
+    print(f"Session tokens — prompt: {total_prompt_tokens:,}  "
+          f"completion: {total_completion_tokens:,}  "
+          f"total: {total_prompt_tokens + total_completion_tokens:,}")
+    if token_usage_rows:
+        _save_token_usage(args.output, token_usage_rows, model_label, provider)
 
 
 # =====================================================================
@@ -1109,7 +1312,7 @@ def cmd_go_agent(args):
     _log("Agent (go-agent) started.")
     provider = getattr(args, "provider", "gemini")
     gemini_model = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
-    or_model = getattr(args, "or_model", "google/gemma-3-27b-it:free")
+    or_model = getattr(args, "or_model", "poolside/laguna-s-2.1:free")
     _log(f"Provider: {provider} | Gemini model: {gemini_model} | OR model: {or_model}")
     _log(f"Working directory: {args.workdir}")
 
@@ -1136,14 +1339,15 @@ def cmd_go_agent(args):
     # STEP 2: LLM file selection
     _log("STEP 2: Asking LLM to select the most relevant files...")
     try:
-        selected_files_str = _call_llm(provider, selection_prompt,
-                                       gemini_model=gemini_model,
-                                       openrouter_model=or_model,
-                                       max_tokens=512)
+        selected_files_str, sel_usage = _call_llm(provider, selection_prompt,
+                                                  gemini_model=gemini_model,
+                                                  openrouter_model=or_model,
+                                                  max_tokens=512)
     except Exception as e:
         _log(f"Error during file selection: {e}")
         sys.exit(1)
 
+    _log(f"LLM file selection tokens: prompt={sel_usage.get('prompt_tokens',0)}, completion={sel_usage.get('completion_tokens',0)}")
     _log(f"LLM file selection response: {selected_files_str}")
     selected_files = [f.strip(' `"\n') for f in selected_files_str.split(",")]
     valid_files = [f for f in selected_files if f in all_files]
@@ -1177,15 +1381,15 @@ def cmd_go_agent(args):
 
     _log("STEP 4: Requesting patch generation from LLM...")
     try:
-        text = _call_llm(provider, full_prompt,
-                         gemini_model=gemini_model,
-                         openrouter_model=or_model,
-                         max_tokens=4096)
+        text, patch_usage = _call_llm(provider, full_prompt,
+                                      gemini_model=gemini_model,
+                                      openrouter_model=or_model,
+                                      max_tokens=4096)
     except Exception as e:
         _log(f"Error during patch generation: {e}")
         sys.exit(1)
 
-    _log("Successfully received patch from LLM.")
+    _log(f"Successfully received patch from LLM. Tokens: prompt={patch_usage.get('prompt_tokens',0)}, completion={patch_usage.get('completion_tokens',0)}")
 
     # Strip markdown fences if present
     if text.startswith("```"):
@@ -1574,8 +1778,8 @@ def build_parser():
     p_gen.add_argument("--input", required=True, help="patcheval_verified.json")
     p_gen.add_argument("--output", default="python_patches_gemini.jsonl")
     p_gen.add_argument("--model", default="gemini-2.0-flash", help="Gemini model name")
-    p_gen.add_argument("--or-model", dest="or_model", default="google/gemma-3-27b-it:free",
-                       help="OpenRouter model name")
+    p_gen.add_argument("--or-model", dest="or_model", default="poolside/laguna-s-2.1:free",
+                       help="OpenRouter model name (default: poolside/laguna-s-2.1:free — best free coding model)")
     p_gen.add_argument("--provider", choices=["gemini", "openrouter"], default="gemini")
     p_gen.add_argument("--limit", type=int, default=-1, help="-1 = run all")
     p_gen.add_argument("--max_tokens", type=int, default=6000)
@@ -1586,8 +1790,8 @@ def build_parser():
     p_pygen.add_argument("--input", required=True, help="patcheval_verified.json or python subset")
     p_pygen.add_argument("--output", default="python_patches.jsonl")
     p_pygen.add_argument("--model", default="gemini-2.0-flash", help="Gemini model name")
-    p_pygen.add_argument("--or-model", dest="or_model", default="google/gemma-3-27b-it:free",
-                         help="OpenRouter model name")
+    p_pygen.add_argument("--or-model", dest="or_model", default="poolside/laguna-s-2.1:free",
+                         help="OpenRouter model name (default: poolside/laguna-s-2.1:free — best free coding model)")
     p_pygen.add_argument("--provider", choices=["gemini", "openrouter"], default="gemini")
     p_pygen.add_argument("--limit", type=int, default=-1, help="-1 = run all")
     p_pygen.add_argument("--max_tokens", type=int, default=6000)
@@ -1598,8 +1802,8 @@ def build_parser():
     p_gogen.add_argument("--input", required=True, help="patcheval_verified.json or go subset")
     p_gogen.add_argument("--output", default="go_patches.jsonl")
     p_gogen.add_argument("--model", default="gemini-2.0-flash", help="Gemini model name")
-    p_gogen.add_argument("--or-model", dest="or_model", default="google/gemma-3-27b-it:free",
-                         help="OpenRouter model name")
+    p_gogen.add_argument("--or-model", dest="or_model", default="poolside/laguna-s-2.1:free",
+                         help="OpenRouter model name (default: poolside/laguna-s-2.1:free — best free coding model)")
     p_gogen.add_argument("--provider", choices=["gemini", "openrouter"], default="gemini")
     p_gogen.add_argument("--limit", type=int, default=-1, help="-1 = run all")
     p_gogen.add_argument("--max_tokens", type=int, default=6000)
@@ -1610,8 +1814,8 @@ def build_parser():
     p_jsgen.add_argument("--input", required=True, help="patcheval_verified.json or js subset")
     p_jsgen.add_argument("--output", default="js_patches.jsonl")
     p_jsgen.add_argument("--model", default="gemini-2.0-flash", help="Gemini model name")
-    p_jsgen.add_argument("--or-model", dest="or_model", default="google/gemma-3-27b-it:free",
-                         help="OpenRouter model name")
+    p_jsgen.add_argument("--or-model", dest="or_model", default="poolside/laguna-s-2.1:free",
+                         help="OpenRouter model name (default: poolside/laguna-s-2.1:free — best free coding model)")
     p_jsgen.add_argument("--provider", choices=["gemini", "openrouter"], default="gemini")
     p_jsgen.add_argument("--limit", type=int, default=-1, help="-1 = run all")
     p_jsgen.add_argument("--max_tokens", type=int, default=6000)
@@ -1622,7 +1826,7 @@ def build_parser():
     p_agent.add_argument("prompt_file", help="Path to the prompt text file written by patch_agent_runner.py")
     p_agent.add_argument("workdir", help="Repository root inside the Docker container")
     p_agent.add_argument("--provider", choices=["gemini", "openrouter"], default="gemini")
-    p_agent.add_argument("--or-model", dest="or_model", default="google/gemma-3-27b-it:free",
+    p_agent.add_argument("--or-model", dest="or_model", default="poolside/laguna-s-2.1:free",
                          help="OpenRouter model (only used when --provider openrouter)")
     p_agent.set_defaults(func=cmd_go_agent)
 

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # run_openrouter.sh — PatchEval runner via OpenRouter — Go, JavaScript & Python
 #
-# Default model: google/gemma-3-27b-it
+# Default model: poolside/laguna-s-2.1:free
+#   (Verified FREE as of 2026-08-19 via GET /api/v1/models — pricing=0)
 #
 # Output labels (evaluation results):
 #   Go         → evaluation_output/results/gogemma_poc/
@@ -18,8 +19,27 @@
 #   bash run_openrouter.sh all-poc        # All 3 languages sequentially
 #
 # Override model at runtime:
-#   OPENROUTER_MODEL=anthropic/claude-3-5-sonnet  bash run_openrouter.sh poc
-#   OPENROUTER_MODEL=openai/gpt-4o                bash run_openrouter.sh js-poc
+#   OPENROUTER_MODEL=nvidia/nemotron-3-ultra-550b-a55b:free  bash run_openrouter.sh poc
+#   OPENROUTER_MODEL=nvidia/nemotron-3-super-120b-a12b:free  bash run_openrouter.sh js-poc
+#
+# ── CONFIRMED FREE MODELS (live-verified 2026-08-19, pricing=0/0) ────────────
+#
+#   CODING (recommended for patch generation):
+#     poolside/laguna-s-2.1:free          ctx=262k  out=32k  ← DEFAULT, coding-specialist
+#     poolside/laguna-xs-2.1:free         ctx=262k  out=32k  ← smaller/faster Laguna
+#     cohere/north-mini-code:free         ctx=256k  out=64k  ← code-focused MoE
+#     nvidia/nemotron-3-super-120b-a12b:free  ctx=262k  out=262k  ← large, high quality
+#
+#   REASONING (for analysis / complex logic):
+#     nvidia/nemotron-3-ultra-550b-a55b:free  ctx=1M  out=64k  ← largest free model
+#     nvidia/nemotron-3.5-lightning:free      ctx=1M  out=64k  ← fast MoE
+#     z-ai/glm-5.2:free                       ctx=256k  out=256k ← reasoning
+#
+#   LIGHTWEIGHT (log parsing, quick tasks):
+#     openai/gpt-oss-20b:free             ctx=131k  out=32k
+#     nvidia/nemotron-3-nano-30b-a3b:free ctx=256k
+#     google/gemma-4-26b-a4b-it:free      ctx=262k  out=32k
+#     openrouter/free                     ctx=200k  (random free model)
 #
 # API key — set in shell or add to .env:
 #   export OPENROUTER_API_KEY="sk-or-v1-..."
@@ -50,7 +70,7 @@ fi
 
 # ── Force OpenRouter + default model ─────────────────────────────────────────
 export API_PROVIDER="openrouter"
-export OPENROUTER_MODEL="${OPENROUTER_MODEL:-google/gemma-3-27b-it}"
+export OPENROUTER_MODEL="${OPENROUTER_MODEL:-poolside/laguna-s-2.1:free}"
 
 if [[ -z "${OPENROUTER_API_KEY:-}" ]]; then
   echo "[✗] OPENROUTER_API_KEY is not set." >&2
@@ -269,11 +289,21 @@ case "$MODE" in
     echo ""
     echo "Environment variables:"
     echo "  OPENROUTER_API_KEY  Required (sk-or-v1-...)"
-    echo "  OPENROUTER_MODEL    Model to use (default: google/gemma-3-27b-it)"
-    echo "                      Examples:"
-    echo "                        anthropic/claude-3-5-sonnet"
-    echo "                        openai/gpt-4o"
-    echo "                        meta-llama/llama-3.1-70b-instruct"
+    echo "  OPENROUTER_MODEL    Model to use (default: poolside/laguna-s-2.1:free)"
+    echo "                      ── CONFIRMED FREE (live-verified 2026-08-19) ──"
+    echo "                      CODING (patch generation):"
+    echo "                        poolside/laguna-s-2.1:free          ctx=262k ← DEFAULT"
+    echo "                        poolside/laguna-xs-2.1:free          ctx=262k (smaller)"
+    echo "                        cohere/north-mini-code:free          ctx=256k"
+    echo "                        nvidia/nemotron-3-super-120b-a12b:free  ctx=262k"
+    echo "                      REASONING:"
+    echo "                        nvidia/nemotron-3-ultra-550b-a55b:free  ctx=1M"
+    echo "                        nvidia/nemotron-3.5-lightning:free       ctx=1M"
+    echo "                        z-ai/glm-5.2:free                       ctx=256k"
+    echo "                      LIGHTWEIGHT:"
+    echo "                        openai/gpt-oss-20b:free               ctx=131k"
+    echo "                        google/gemma-4-26b-a4b-it:free        ctx=262k"
+    echo "                        openrouter/free                        (random free)"
     echo "  LIMIT               Max CVEs to process (default: -1 = all)"
     echo "  MAX_WORKERS         Parallel workers for PoC evaluation (default: 4)"
     exit 1
