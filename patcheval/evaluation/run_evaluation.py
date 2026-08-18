@@ -299,6 +299,40 @@ def main():
             buffer_handler.close()
             task_logger.removeHandler(buffer_handler)
             
+    # ── Pre-pull Docker images so workers don't silently stall at 0% ──────────
+    images_needed = set()
+    for patch in patchs:
+        img = patch.get("image_url") or cve2image.get(patch["cve"])
+        if img:
+            images_needed.add(img)
+
+    if images_needed:
+        pull_client = docker.from_env()
+        local_images = set()
+        for img_obj in pull_client.images.list():
+            local_images.update(img_obj.tags)
+
+        to_pull = [img for img in sorted(images_needed) if img not in local_images]
+        if to_pull:
+            main_logger.info(
+                f"Pre-pulling {len(to_pull)} Docker image(s) before evaluation "
+                f"(this may take a while)...",
+                extra={"cve": "SETUP"}
+            )
+            print(f"[Step] Pre-pulling {len(to_pull)} Docker image(s) — please wait...")
+            for i, img in enumerate(to_pull, 1):
+                print(f"  [{i}/{len(to_pull)}] Pulling {img} ...", flush=True)
+                try:
+                    pull_client.images.pull(img)
+                    print(f"  [{i}/{len(to_pull)}] ✓ Done: {img}")
+                    main_logger.info(f"Pulled image: {img}", extra={"cve": "SETUP"})
+                except Exception as pull_err:
+                    print(f"  [{i}/{len(to_pull)}] ✗ Failed to pull {img}: {pull_err}")
+                    main_logger.warning(f"Failed to pull {img}: {pull_err}", extra={"cve": "SETUP"})
+            print("[✓] Image pre-pull complete.\n")
+        else:
+            print("[✓] All required Docker images already cached locally.\n")
+
     # Multi-threaded execution
     all_results = []
     with ThreadPoolExecutor(max_workers=args.max_workers) as executor:
