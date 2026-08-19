@@ -18,6 +18,8 @@ Sub-commands
   extract-patch   Extract a single CVE's patch to a standalone .patch file
 """
 
+from __future__ import annotations
+
 import argparse
 import ast
 import csv
@@ -33,6 +35,7 @@ import urllib.error
 import urllib.request
 from collections import Counter, defaultdict
 from pathlib import Path
+from typing import Any, Optional
 
 try:
     from radon.complexity import cc_visit
@@ -126,18 +129,342 @@ def _save_token_usage(
     print(f"[✓] Token usage saved → {usage_path}  ({len(all_rows)} CVEs total)")
 
 
+# =====================================================================
+# Evaluation results persistence & EDA failure breakdown
+# =====================================================================
+
+def _eval_results_path(output_path: str) -> str:
+    """Return the companion evaluation results JSON path for a given .jsonl output path.
+    E.g.  eval_inputs/gogemma_poc.jsonl  →  eval_inputs/gogemma_poc.eval_results.json
+    """
+    p = Path(output_path)
+    return str(p.parent / (p.stem + ".eval_results.json"))
+
+
+def _extract_error_preview(error_text: str, vtype: str) -> str:
+    """Extract a concise preview of why the patch or evaluation failed."""
+    if not error_text:
+        return ""
+    if vtype == "apply_fail":
+        lines = [l.strip() for l in error_text.splitlines() if "patch does not apply" in l or "patch failed" in l or "error:" in l]
+        if lines:
+            return "; ".join(lines[:3])
+    elif vtype == "compilation_fail":
+        lines = [l.strip() for l in error_text.splitlines() if re.search(r"(\.go:\d+:\d+:|SyntaxError|TypeError|IndentationError|undefined)", l)]
+        if lines:
+            return "; ".join(lines[:3])
+    elif vtype == "validation_fail":
+        lines = [l.strip() for l in error_text.splitlines() if l.startswith("--- FAIL:") or l.startswith("FAIL:") or ("FAIL" in l and "\t" in l)]
+        if lines:
+            return "; ".join(lines[:3])
+
+    if "Standard Error" in error_text:
+        part = error_text.split("Standard Error")[1].split("Finish Evaluation")[0].strip("- \n")
+        lines = [l.strip() for l in part.splitlines() if l.strip()]
+        if lines:
+            return "; ".join(lines[:3])
+    return "Evaluation failed"
+
+
+def _find_eval_summary_and_logs(eval_dir_or_path: str) -> tuple[Optional[Path], Optional[Path]]:
+    """Locate summary.json and logs directory from a provided path or directory name."""
+    p = Path(eval_dir_or_path)
+    candidates = [
+        p,
+        Path.cwd() / p,
+        Path.cwd() / "evaluation" / "evaluation_output" / p,
+        Path.cwd() / "evaluation" / p,
+        Path.cwd() / "evaluation_output" / p,
+        Path.cwd().parent / "evaluation" / "evaluation_output" / p,
+        Path.cwd().parent / "evaluation" / p,
+    ]
+    for c in candidates:
+        if c.is_file() and c.name == "summary.json":
+            logs = c.parent / "logs"
+            return c, (logs if logs.is_dir() else None)
+        if c.is_dir():
+            s = c / "summary.json"
+            if s.is_file():
+                logs = c / "logs"
+                return s, (logs if logs.is_dir() else None)
+    return None, None
+
+
+def _save_eval_results(
+    patch_file: str,
+    eval_dir: str,
+    dataset_path: Optional[str] = None,
+    eda_dir: Optional[str] = None,
+) -> dict:
+    """Consolidate PoC evaluation output, failure analysis breakdown (apply_fail,
+    compilation_fail, validation_fail), per-CVE results, and token usage into:
+      1. Companion JSON: eval_inputs/<label>.eval_results.json
+      2. EDA JSON: <eda_dir>/<label>_eda.json and <eda_dir>/all_eval_summary.json
+
+    Prints a clear summary matching the token usage output pattern.
+    """
+    summary_path, logs_dir = _find_eval_summary_and_logs(eval_dir)
+    if not summary_path or not summary_path.is_file():
+        print(f"[!] Warning: summary.json not found in {eval_dir}, skipping eval_results save.")
+        return {}
+
+    summary_data = {}
+    try:
+        with open(summary_path, "r", encoding="utf-8") as f:
+            summary_data = json.load(f)
+    except Exception as e:
+        print(f"[!] Error reading {summary_path}: {e}")
+        return {}
+
+    # Read token usage companion if available
+    token_usage_file = _token_usage_path(patch_file)
+    token_usage_data = {}
+    if os.path.exists(token_usage_file):
+        try:
+            with open(token_usage_file, "r", encoding="utf-8") as f:
+                token_usage_data = json.load(f)
+        except Exception:
+            token_usage_data = {}
+
+    token_by_cve = {r["cve"]: r for r in token_usage_data.get("cves", [])}
+    model_name = token_usage_data.get("model", "")
+    provider_name = token_usage_data.get("provider", "")
+
+    # Read patch lines to map CVE info & language & fallback tokens
+    patch_records = {}
+    if os.path.exists(patch_file):
+        try:
+            with open(patch_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        rec = json.loads(line)
+                        patch_records[rec["cve"]] = rec
+                        if not model_name and "model" in rec:
+                            model_name = rec["model"]
+        except Exception:
+            pass
+
+    # Read dataset if provided for CWE / complexity / repo mapping
+    dataset_map = {}
+    if dataset_path and os.path.exists(dataset_path):
+        try:
+            with open(dataset_path, "r", encoding="utf-8") as f:
+                d_items = json.load(f)
+                for item in d_items:
+                    dataset_map[item["cve_id"]] = item
+        except Exception:
+            pass
+
+    # Extract success and failure summaries from summary.json
+    poc_eval = summary_data.get("poc_evaluation", {})
+    fail_analysis = summary_data.get("failure_analysis", {})
+    failed_cves_map = fail_analysis.get("failed_cves", {})
+    successful_cves_map = poc_eval.get("successful_cves", {})
+
+    # Map each CVE to failure reason / validation type
+    cve_status_map = {}
+    for lang, cves in successful_cves_map.items():
+        for c in cves:
+            cve_status_map[c] = ("pass", "Repair Success", f"{lang}_Repair_Success", lang)
+
+    for fail_key, cves in failed_cves_map.items():
+        # e.g. fail_key = "Go_apply_fail" -> vtype = "apply_fail", lang = "Go"
+        parts = fail_key.split("_", 1)
+        lang = parts[0] if len(parts) > 1 else "Unknown"
+        vtype = parts[1] if len(parts) > 1 else fail_key
+        for c in cves:
+            cve_status_map[c] = ("fail", vtype, fail_key, lang)
+
+    # If logs_dir exists, inspect each CVE's log file for detailed status & error preview
+    cve_error_previews = {}
+    if logs_dir and logs_dir.is_dir():
+        for cve_dir in sorted(logs_dir.iterdir()):
+            if not cve_dir.is_dir():
+                continue
+            cve = cve_dir.name
+            err_log = cve_dir / "error_output.log"
+            succ_log = cve_dir / "success_output.log"
+            if succ_log.exists():
+                if cve not in cve_status_map:
+                    lang = patch_records.get(cve, {}).get("language", "Unknown")
+                    cve_status_map[cve] = ("pass", "Repair Success", f"{lang}_Repair_Success", lang)
+            elif err_log.exists():
+                try:
+                    text = err_log.read_text(encoding="utf-8", errors="replace")
+                    m = re.search(r"\[Validation TYPE\]:\s*(\S+)", text)
+                    vtype = m.group(1) if m else "unknown_fail"
+                    lang = patch_records.get(cve, {}).get("language", "Unknown")
+                    fail_key = f"{lang}_{vtype}" if not vtype.startswith(lang) else vtype
+                    cve_status_map[cve] = ("fail", vtype, fail_key, lang)
+                    cve_error_previews[cve] = _extract_error_preview(text, vtype)
+                except Exception:
+                    pass
+
+    # Build per-CVE detailed entries
+    all_cves = sorted(set(list(patch_records.keys()) + list(cve_status_map.keys())))
+    cve_entries = []
+    for cve in all_cves:
+        status, vtype, fail_cat, lang = cve_status_map.get(
+            cve, ("unknown", "unknown", "unknown", patch_records.get(cve, {}).get("language", "Unknown"))
+        )
+        if lang == "Unknown" and cve in patch_records:
+            lang = patch_records[cve].get("language", "Unknown")
+        if lang == "Unknown" and cve in dataset_map:
+            lang = dataset_map[cve].get("programing_language", "Unknown")
+
+        # Tokens
+        tok = token_by_cve.get(cve) or patch_records.get(cve, {}).get("token_usage", {})
+        prompt_tokens = tok.get("prompt_tokens")
+        completion_tokens = tok.get("completion_tokens")
+        total_tokens = tok.get("total_tokens")
+        timestamp = tok.get("timestamp") or datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+
+        # Dataset info
+        ds_info = dataset_map.get(cve, {})
+        cwe_ids = list(ds_info.get("cwe_info", {}).keys())
+        primary_cwe = cwe_ids[0] if cwe_ids else ds_info.get("cwe", "UNKNOWN")
+        cwe_name = ds_info.get("cwe_info", {}).get(primary_cwe, {}).get("name", "")
+
+        entry = {
+            "cve": cve,
+            "language": lang,
+            "status": status,
+            "validation_type": vtype,
+            "failure_category": fail_cat if status == "fail" else "Repair Success",
+            "error_preview": cve_error_previews.get(cve, ""),
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "total_tokens": total_tokens,
+            "cwe_id": primary_cwe,
+            "cwe_name": cwe_name,
+            "model": patch_records.get(cve, {}).get("model", model_name),
+            "timestamp": timestamp,
+        }
+        cve_entries.append(entry)
+
+    # Load existing companion file to allow cumulative merging
+    eval_results_file = _eval_results_path(patch_file)
+    existing_eval: dict = {}
+    if os.path.exists(eval_results_file):
+        try:
+            with open(eval_results_file, "r", encoding="utf-8") as f:
+                existing_eval = json.load(f)
+        except Exception:
+            existing_eval = {}
+
+    existing_by_cve = {r["cve"]: r for r in existing_eval.get("cves", [])}
+    for row in cve_entries:
+        existing_by_cve[row["cve"]] = row
+
+    all_cve_rows = sorted(existing_by_cve.values(), key=lambda r: r.get("timestamp", ""))
+
+    total_eval = len(all_cve_rows)
+    n_pass = sum(1 for c in all_cve_rows if c["status"] == "pass")
+    n_fail = sum(1 for c in all_cve_rows if c["status"] == "fail")
+    pass_rate_val = (n_pass / total_eval * 100) if total_eval else 0.0
+
+    fail_counts = Counter(c["failure_category"] for c in all_cve_rows if c["status"] == "fail")
+    fail_pct = {k: f"{(v / total_eval * 100):.1f}%" for k, v in fail_counts.items()} if total_eval else {}
+    success_counts = Counter(c["language"] for c in all_cve_rows if c["status"] == "pass")
+
+    total_prompt = sum(c.get("prompt_tokens") or 0 for c in all_cve_rows)
+    total_completion = sum(c.get("completion_tokens") or 0 for c in all_cve_rows)
+    total_tokens = total_prompt + total_completion
+
+    label = Path(patch_file).stem
+
+    payload = {
+        "label": label,
+        "model": model_name or existing_eval.get("model", "unknown"),
+        "provider": provider_name or existing_eval.get("provider", "unknown"),
+        "updated_at": datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+        "evaluation_summary": {
+            "total_cases": total_eval,
+            "total_success": n_pass,
+            "total_failed": n_fail,
+            "pass_rate": f"{pass_rate_val:.2f}%",
+            "success_breakdown": dict(success_counts),
+            "failure_breakdown": dict(sorted(fail_counts.items(), key=lambda x: -x[1])),
+            "failure_percentages": fail_pct,
+        },
+        "session_tokens": {
+            "prompt_tokens": total_prompt,
+            "completion_tokens": total_completion,
+            "total_tokens": total_tokens,
+        },
+        "cves": all_cve_rows,
+    }
+
+    # 1. Write companion evaluation results JSON
+    Path(eval_results_file).parent.mkdir(parents=True, exist_ok=True)
+    with open(eval_results_file, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2, ensure_ascii=False)
+
+    print(f"[✓] Evaluation results & failure analysis saved → {eval_results_file}  ({total_eval} CVEs evaluated: {n_pass} pass, {n_fail} fail)")
+    if fail_counts:
+        fail_str = ", ".join(f"{k}: {v}" for k, v in sorted(fail_counts.items()))
+        print(f"    Failures breakdown: {fail_str}")
+
+    # 2. Write / update EDA summary
+    eda_outdir = Path(eda_dir) if eda_dir else Path(patch_file).parent.parent / "eda"
+    eda_outdir.mkdir(parents=True, exist_ok=True)
+    label_eda_path = eda_outdir / f"{label}_eda.json"
+    with open(label_eda_path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2, ensure_ascii=False)
+    print(f"[✓] EDA summary saved → {label_eda_path}")
+
+    # 3. Update cumulative EDA registry
+    all_summary_path = eda_outdir / "all_eval_summary.json"
+    all_summary = {}
+    if all_summary_path.exists():
+        try:
+            with open(all_summary_path, "r", encoding="utf-8") as f:
+                all_summary = json.load(f)
+        except Exception:
+            all_summary = {}
+
+    all_summary[label] = {
+        "label": label,
+        "model": payload["model"],
+        "provider": payload["provider"],
+        "updated_at": payload["updated_at"],
+        "total_cases": total_eval,
+        "total_success": n_pass,
+        "total_failed": n_fail,
+        "pass_rate": f"{pass_rate_val:.2f}%",
+        "failure_breakdown": dict(fail_counts),
+        "total_tokens": total_tokens,
+    }
+    with open(all_summary_path, "w", encoding="utf-8") as f:
+        json.dump(all_summary, f, indent=2, ensure_ascii=False)
+
+    return payload
+
+
+def cmd_save_eval(args):
+    """CLI command handler for save-eval."""
+    _save_eval_results(
+        patch_file=args.patch_file,
+        eval_dir=args.eval_dir,
+        dataset_path=getattr(args, "dataset", None),
+        eda_dir=getattr(args, "eda_dir", "./eda"),
+    )
+
 
 # =====================================================================
-# eda — Part A: EDA for Python CVE subset in PatchEval-Verified
+# eda — Part A: EDA for CVE dataset & Evaluation Results in PatchEval
 # =====================================================================
 
-def _eda_load_python_subset(input_path):
+def _eda_load_dataset_subset(input_path: str, lang: str = "all") -> list:
     with open(input_path, "r", encoding="utf-8") as f:
         data = json.load(f)
-    return [d for d in data if d["programing_language"] == "Python"]
+    if not lang or lang.lower() == "all":
+        return data
+    return [d for d in data if d.get("programing_language", "").lower() == lang.lower()]
 
 
-def _eda_complexity_tier(lines):
+def _eda_complexity_tier(lines: int) -> str:
     if lines <= 5:
         return "Easy"
     elif lines <= 10:
@@ -148,13 +475,15 @@ def _eda_complexity_tier(lines):
         return "VeryHard"
 
 
-def _eda_analyze(py_items):
+def _eda_analyze(items: list, eval_map: Optional[dict] = None) -> list:
     rows = []
-    for d in py_items:
+    for d in items:
         cve_id = d["cve_id"]
-        year = int(cve_id.split("-")[1])
+        year = int(cve_id.split("-")[1]) if "-" in cve_id else 0
         cwe_ids = list(d.get("cwe_info", {}).keys())
         primary_cwe = cwe_ids[0] if cwe_ids else "UNKNOWN"
+        cwe_name = d.get("cwe_info", {}).get(primary_cwe, {}).get("name", "")
+        lang = d.get("programing_language", "Unknown")
 
         vul_entries = d.get("vul_func", [])
         patch_lines = sum(
@@ -163,27 +492,46 @@ def _eda_analyze(py_items):
             for loc in vf.get("vul_localization", [])
         )
         patch_locations = len(vul_entries)
-        patch_files = len({vf["file_path"] for vf in vul_entries}) or 1
+        patch_files = len({vf["file_path"] for vf in vul_entries if "file_path" in vf}) or 1
+
+        eval_info = (eval_map or {}).get(cve_id, {})
+        status = eval_info.get("status", "not_evaluated")
+        vtype = eval_info.get("validation_type", "")
+        fail_cat = eval_info.get("failure_category", "")
+        prompt_tokens = eval_info.get("prompt_tokens")
+        completion_tokens = eval_info.get("completion_tokens")
+        total_tokens = eval_info.get("total_tokens")
 
         rows.append({
             "cve_id": cve_id,
+            "language": lang,
             "year": year,
             "repo": d.get("repo"),
             "cwe_ids": cwe_ids,
             "primary_cwe": primary_cwe,
+            "cwe_name": cwe_name,
             "patch_lines": patch_lines,
             "patch_locations": patch_locations,
             "patch_files": patch_files,
             "complexity_tier": _eda_complexity_tier(patch_lines),
+            "eval_status": status,
+            "validation_type": vtype,
+            "failure_category": fail_cat,
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "total_tokens": total_tokens,
         })
     return rows
 
 
-def _eda_summarize(rows):
+def _eda_summarize(rows: list) -> dict:
     n = len(rows)
+    if not n:
+        return {"n_cve": 0}
     year_counts = Counter(r["year"] for r in rows)
     cwe_counts = Counter(r["primary_cwe"] for r in rows)
     tier_counts = Counter(r["complexity_tier"] for r in rows)
+    lang_counts = Counter(r["language"] for r in rows)
 
     lines_vals = sorted(r["patch_lines"] for r in rows)
     files_vals = sorted(r["patch_files"] for r in rows)
@@ -193,8 +541,16 @@ def _eda_summarize(rows):
         mid = m // 2
         return vals[mid] if m % 2 else (vals[mid - 1] + vals[mid]) / 2
 
-    return {
+    # Eval metrics if available
+    evaluated = [r for r in rows if r.get("eval_status") in ("pass", "fail")]
+    n_eval = len(evaluated)
+    n_pass = sum(1 for r in evaluated if r.get("eval_status") == "pass")
+    n_fail = sum(1 for r in evaluated if r.get("eval_status") == "fail")
+    fail_counts = Counter(r["failure_category"] for r in evaluated if r.get("eval_status") == "fail")
+
+    summary = {
         "n_cve": n,
+        "languages": dict(lang_counts),
         "n_repo": len({r["repo"] for r in rows}),
         "year_range": [min(year_counts), max(year_counts)],
         "year_distribution": dict(sorted(year_counts.items())),
@@ -210,19 +566,68 @@ def _eda_summarize(rows):
         "patch_files_max": max(files_vals),
     }
 
+    if n_eval > 0:
+        summary["evaluation"] = {
+            "total_evaluated": n_eval,
+            "pass_count": n_pass,
+            "fail_count": n_fail,
+            "pass_rate": f"{(n_pass / n_eval * 100):.2f}%",
+            "failure_breakdown": dict(sorted(fail_counts.items(), key=lambda x: -x[1])),
+            "failure_percentages": {k: f"{(v / n_eval * 100):.1f}%" for k, v in fail_counts.items()},
+        }
+        tier_eval = defaultdict(lambda: {"pass": 0, "fail": 0})
+        for r in evaluated:
+            tier_eval[r["complexity_tier"]]["pass" if r["eval_status"] == "pass" else "fail"] += 1
+        summary["evaluation"]["pass_rate_by_complexity_tier"] = {
+            tier: f"{(counts['pass'] / (counts['pass'] + counts['fail']) * 100):.1f}% ({counts['pass']}/{counts['pass'] + counts['fail']})"
+            for tier, counts in tier_eval.items()
+        }
+
+    return summary
+
 
 def cmd_eda(args):
     os.makedirs(args.outdir, exist_ok=True)
-    py_items = _eda_load_python_subset(args.input)
-    rows = _eda_analyze(py_items)
+    lang = getattr(args, "lang", "all")
+    items = _eda_load_dataset_subset(args.input, lang=lang)
+
+    # Load eval results if provided
+    eval_map = {}
+    eval_path = getattr(args, "eval_results", None)
+    if eval_path and os.path.exists(eval_path):
+        try:
+            with open(eval_path, "r", encoding="utf-8") as f:
+                edata = json.load(f)
+                if "cves" in edata:
+                    eval_map = {c["cve"]: c for c in edata["cves"]}
+                elif "failure_analysis" in edata:
+                    # summary.json format
+                    for k, cves in edata.get("failure_analysis", {}).get("failed_cves", {}).items():
+                        parts = k.split("_", 1)
+                        vtype = parts[1] if len(parts) > 1 else k
+                        for c in cves:
+                            eval_map[c] = {"status": "fail", "validation_type": vtype, "failure_category": k}
+                    for k, cves in edata.get("poc_evaluation", {}).get("successful_cves", {}).items():
+                        for c in cves:
+                            eval_map[c] = {"status": "pass", "validation_type": "Repair Success", "failure_category": "Repair Success"}
+        except Exception as e:
+            print(f"[!] Warning reading eval_results {eval_path}: {e}")
+
+    rows = _eda_analyze(items, eval_map=eval_map)
     summary = _eda_summarize(rows)
 
-    with open(os.path.join(args.outdir, "python_cve_table.json"), "w", encoding="utf-8") as f:
+    prefix = f"{lang.lower()}_" if lang.lower() != "all" else ""
+    table_file = os.path.join(args.outdir, f"{prefix}cve_table.json")
+    summary_file = os.path.join(args.outdir, f"{prefix}eda_summary.json")
+
+    with open(table_file, "w", encoding="utf-8") as f:
         json.dump(rows, f, indent=2, ensure_ascii=False)
-    with open(os.path.join(args.outdir, "python_eda_summary.json"), "w", encoding="utf-8") as f:
+    with open(summary_file, "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2, ensure_ascii=False)
 
     print(json.dumps(summary, indent=2, ensure_ascii=False))
+    print(f"\n[✓] Wrote EDA table   → {table_file}")
+    print(f"[✓] Wrote EDA summary → {summary_file}")
 
 
 # =====================================================================
@@ -1762,10 +2167,20 @@ def build_parser():
     sub = ap.add_subparsers(dest="command", required=True)
 
     # ── eda ──────────────────────────────────────────────────────────
-    p_eda = sub.add_parser("eda", help="EDA for Python CVE subset (patch-size tier)")
-    p_eda.add_argument("--input", required=True)
-    p_eda.add_argument("--outdir", default="./output_python")
+    p_eda = sub.add_parser("eda", help="EDA for CVE dataset and evaluation results (failure analysis & metrics)")
+    p_eda.add_argument("--input", required=True, help="Dataset JSON (patcheval_verified.json or language subset)")
+    p_eda.add_argument("--lang", default="all", help="Language filter: all | Python | Go | JavaScript (default: all)")
+    p_eda.add_argument("--eval-results", default=None, help="Companion eval_results.json or evaluation summary.json")
+    p_eda.add_argument("--outdir", default="./eda", help="Output directory for EDA tables and summaries")
     p_eda.set_defaults(func=cmd_eda)
+
+    # ── save-eval ────────────────────────────────────────────────────
+    p_save_eval = sub.add_parser("save-eval", help="Save evaluation results, failure analysis (apply_fail, compilation_fail, validation_fail) & tokens to companion JSON & EDA")
+    p_save_eval.add_argument("--patch-file", required=True, help="eval_inputs/<label>.jsonl")
+    p_save_eval.add_argument("--eval-dir", required=True, help="Path to evaluation_output/results/<label> or summary.json")
+    p_save_eval.add_argument("--dataset", default=None, help="Dataset JSON (patcheval_verified_go.json or patcheval_verified.json)")
+    p_save_eval.add_argument("--eda-dir", default="./eda", help="Directory to save EDA summaries (default: ./eda)")
+    p_save_eval.set_defaults(func=cmd_save_eval)
 
     # ── complexity ───────────────────────────────────────────────────
     p_cx = sub.add_parser("complexity", help="Structural complexity analysis for Python (requires radon)")

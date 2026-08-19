@@ -151,6 +151,18 @@ run_eval() {
   else
     echo "[!] Report not found yet. Check evaluation/results/$label/"
   fi
+
+  echo ""
+  # ── Save evaluation results & failure analysis for EDA ─────────────────────
+  local eval_dir="$SCRIPT_DIR/../evaluation/evaluation_output/results/${label}"
+  if [[ ! -d "$eval_dir" ]]; then
+    eval_dir="$SCRIPT_DIR/../evaluation/results/${label}"
+  fi
+  python3 "$TOOLKIT" save-eval \
+    --patch-file "$SCRIPT_DIR/eval_inputs/${label}.jsonl" \
+    --eval-dir "$eval_dir" \
+    --dataset "$DATASET" \
+    --eda-dir "$SCRIPT_DIR/eda"
 }
 
 # ── Generic snippet-level PoC runner ─────────────────────────────────────────
@@ -233,6 +245,18 @@ run_poc() {
   else
     echo "[!] Report not found at $report or $report2 — check evaluation/results/${label}/"
   fi
+
+  echo ""
+  # ── Save evaluation results & failure analysis for EDA ─────────────────────
+  local eval_dir="$SCRIPT_DIR/../evaluation/evaluation_output/results/${label}"
+  if [[ ! -d "$eval_dir" ]]; then
+    eval_dir="$SCRIPT_DIR/../evaluation/results/${label}"
+  fi
+  python3 "$TOOLKIT" save-eval \
+    --patch-file "$patches_jsonl" \
+    --eval-dir "$eval_dir" \
+    --dataset "$dataset" \
+    --eda-dir "$SCRIPT_DIR/eda"
 }
 
 # ── Main ──────────────────────────────────────────────────────────────────────

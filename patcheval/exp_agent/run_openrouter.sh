@@ -219,6 +219,18 @@ run_poc() {
   else
     echo "[!] Report not found — check evaluation/results/${label}/"
   fi
+
+  echo ""
+  # ── Save evaluation results & failure analysis for EDA ─────────────────────
+  local eval_dir="$SCRIPT_DIR/../evaluation/evaluation_output/results/${label}"
+  if [[ ! -d "$eval_dir" ]]; then
+    eval_dir="$SCRIPT_DIR/../evaluation/results/${label}"
+  fi
+  python3 "$TOOLKIT" save-eval \
+    --patch-file "$patches_jsonl" \
+    --eval-dir "$eval_dir" \
+    --dataset "$dataset" \
+    --eda-dir "$SCRIPT_DIR/eda"
 }
 
 # ── Main ──────────────────────────────────────────────────────────────────────

@@ -15,6 +15,7 @@ import re
 import shlex
 import shutil
 import time
+from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Optional
@@ -48,6 +49,7 @@ class GenerationResult:
     duration_s: float
     patch_path: str
     error: str = ""
+    error_type: str = ""
 
 
 def _safe_name(value: str, max_len: int = 100) -> str:
@@ -326,7 +328,21 @@ async def _run_one(sample: dict[str, Any], index: int, args: argparse.Namespace,
             _log(f"{run_id}: failed: {error}")
         finally:
             await _remove_container(container)
-        result = GenerationResult(index, cve, instance_id, image, workdir, container, status, status == "generated", agent_result.exit_code if agent_result else None, timed_out, time.monotonic() - started, str(patch_path), error)
+        error_type = ""
+        if status != "generated":
+            if timed_out:
+                error_type = "agent_timeout"
+            elif agent_result and agent_result.exit_code != 0:
+                error_type = f"agent_exit_{agent_result.exit_code}"
+            elif "docker run failed" in error:
+                error_type = "docker_start_fail"
+            elif "target workdir" in error or "git repository" in error:
+                error_type = "workdir_error"
+            elif "no patch collected" in error:
+                error_type = "no_patch_collected"
+            else:
+                error_type = "generation_fail"
+        result = GenerationResult(index, cve, instance_id, image, workdir, container, status, status == "generated", agent_result.exit_code if agent_result else None, timed_out, time.monotonic() - started, str(patch_path), error, error_type)
         return result
 
 
@@ -355,9 +371,29 @@ async def _main(args: argparse.Namespace) -> int:
             f.flush()
             _log(f"progress {i}/{len(tasks)}: {result.cve} {result.status}")
     generated = sum(r.patch_generated for r in results)
-    _write_json(run_root / "summary.json", {"total": len(results), "generated": generated, "failed": len(results) - generated})
+    failed = len(results) - generated
+    failure_breakdown = Counter(r.error_type for r in results if not r.patch_generated)
+    failed_cves = defaultdict(list)
+    for r in results:
+        if not r.patch_generated:
+            failed_cves[r.error_type or "unknown"].append(r.cve)
+
+    summary_payload = {
+        "total": len(results),
+        "generated": generated,
+        "failed": failed,
+        "generation_success_rate": f"{(generated / len(results) * 100) if results else 0:.2f}%",
+        "failure_breakdown": dict(sorted(failure_breakdown.items())),
+        "failed_cves": dict(failed_cves),
+        "mean_duration_s": round(sum(r.duration_s for r in results) / len(results), 2) if results else 0,
+        "total_duration_s": round(sum(r.duration_s for r in results), 2) if results else 0,
+        "updated_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+    }
+    _write_json(run_root / "summary.json", summary_payload)
     print(f"Run directory: {run_root}")
     print(f"Generated patches: {generated}/{len(results)}")
+    if failure_breakdown:
+        print(f"Generation failures: {dict(failure_breakdown)}")
     return 0 if generated == len(results) else 1
 
 

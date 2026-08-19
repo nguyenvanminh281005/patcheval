@@ -38,3 +38,15 @@ python "${SCRIPT_DIR}/process_data.py" \
     --limit 5 \
     --remove_images
 )
+
+# ── Save evaluation results & failure analysis for EDA ─────────────────────
+eval_dir="${SCRIPT_DIR}/../evaluation/evaluation_output/results/${PREFIX}"
+if [[ ! -d "$eval_dir" ]]; then
+  eval_dir="${SCRIPT_DIR}/../evaluation/results/${PREFIX}"
+fi
+TOOLKIT="${SCRIPT_DIR}/patcheval_toolkit.py"
+python3 "$TOOLKIT" save-eval \
+  --patch-file "$PROCESS_DATA" \
+  --eval-dir "$eval_dir" \
+  --dataset "$DATASET" \
+  --eda-dir "${SCRIPT_DIR}/eda"
