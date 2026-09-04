@@ -66,7 +66,8 @@ import requests
 # ── Import lai logic Docker tu run_evaluation.py (khong viet lai) ───────────
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 try:
-    from run_evaluation import DockerManager, Evaluation
+    from run_evaluation import DockerManager, Evaluation, safe_remove_image, prune_docker_resources
+    import docker
 except ImportError as e:
     raise SystemExit(
         "Khong import duoc DockerManager/Evaluation tu run_evaluation.py.\n"
@@ -313,7 +314,7 @@ def truncate_log(text: str, max_chars: int = 3000) -> str:
 
 # ── Vong lap chinh cho 1 CVE ──────────────────────────────────────────────
 
-def self_repair_one_cve(cve_record, provider, api_key, model, max_tokens, max_rounds, logger):
+def self_repair_one_cve(cve_record, provider, api_key, model, max_tokens, max_rounds, logger, remove_images=True):
     cve_id = cve_record["cve_id"]
     vul_entry = cve_record["vul_func"][0]
     cwe_ids = list(cve_record.get("cwe_info", {}).keys())
@@ -335,59 +336,73 @@ def self_repair_one_cve(cve_record, provider, api_key, model, max_tokens, max_ro
     last_result_type = None
 
     evaluation = Evaluation(logger=logger, cve=cve_id)
+    res = None
 
-    for round_num in range(1, max_rounds + 1):
-        print(f"  [Round {round_num}/{max_rounds}] {cve_id}")
+    try:
+        for round_num in range(1, max_rounds + 1):
+            print(f"  [Round {round_num}/{max_rounds}] {cve_id}")
 
-        if round_num == 1:
-            prompt = INITIAL_PROMPT_TEMPLATE.format(
-                cve_id=cve_id, cwe_id=cwe_id, cwe_name=cwe_name,
-                cve_description=cve_record.get("cve_description", ""),
-                file_path=file_path, lang_fence=lang_fence, vul_snippet=old_snippet,
+            if round_num == 1:
+                prompt = INITIAL_PROMPT_TEMPLATE.format(
+                    cve_id=cve_id, cwe_id=cwe_id, cwe_name=cwe_name,
+                    cve_description=cve_record.get("cve_description", ""),
+                    file_path=file_path, lang_fence=lang_fence, vul_snippet=old_snippet,
+                )
+            else:
+                prompt = REPAIR_PROMPT_TEMPLATE.format(
+                    cve_id=cve_id, cwe_id=cwe_id, cwe_name=cwe_name,
+                    cve_description=cve_record.get("cve_description", ""),
+                    file_path=file_path, lang_fence=lang_fence, vul_snippet=old_snippet,
+                    previous_code=previous_code, error_log=truncate_log(previous_error or ""),
+                )
+
+            try:
+                raw_output = call_llm(prompt, provider, model, api_key, max_tokens)
+            except Exception as e:
+                print(f"    [FAIL] LLM call error: {e}")
+                res = {"cve": cve_id, "status": "llm_error", "rounds_used": round_num,
+                        "fix_patch": last_patch or "", "error": str(e)}
+                break
+
+            new_code, fix_patch = build_patch_from_code(old_snippet, raw_output, file_path, start_line)
+            last_patch = fix_patch
+            previous_code = new_code
+
+            run_poc_result, run_poc_msg, validation_type = evaluation.run_evaluation(
+                cve=cve_id, llm_patch=fix_patch, language=language,
+                test_name="self_repair", image_name=image_name,
             )
-        else:
-            prompt = REPAIR_PROMPT_TEMPLATE.format(
-                cve_id=cve_id, cwe_id=cwe_id, cwe_name=cwe_name,
-                cve_description=cve_record.get("cve_description", ""),
-                file_path=file_path, lang_fence=lang_fence, vul_snippet=old_snippet,
-                previous_code=previous_code, error_log=truncate_log(previous_error or ""),
-            )
+            last_result_type = validation_type
 
-        try:
-            raw_output = call_llm(prompt, provider, model, api_key, max_tokens)
-        except Exception as e:
-            print(f"    [FAIL] LLM call error: {e}")
-            return {"cve": cve_id, "status": "llm_error", "rounds_used": round_num,
-                    "fix_patch": last_patch or "", "error": str(e)}
+            if run_poc_result:
+                print(f"    [PASS] {cve_id} sau {round_num} vong")
+                res = {
+                    "cve": cve_id, "language": language, "model": model,
+                    "fix_patch": fix_patch, "status": "pass",
+                    "rounds_used": round_num,
+                }
+                break
 
-        new_code, fix_patch = build_patch_from_code(old_snippet, raw_output, file_path, start_line)
-        last_patch = fix_patch
-        previous_code = new_code
+            # Fail -> chuan bi log loi cho vong sau
+            previous_error = run_poc_msg or "Khong co log loi chi tiet."
+            print(f"    [FAIL] {cve_id} ({validation_type}) — thu lai..." if round_num < max_rounds
+                  else f"    [FAIL] {cve_id} ({validation_type}) — het so vong, dung lai.")
 
-        run_poc_result, run_poc_msg, validation_type = evaluation.run_evaluation(
-            cve=cve_id, llm_patch=fix_patch, language=language,
-            test_name="self_repair", image_name=image_name,
-        )
-        last_result_type = validation_type
-
-        if run_poc_result:
-            print(f"    [PASS] {cve_id} sau {round_num} vong")
-            return {
+        if res is None:
+            res = {
                 "cve": cve_id, "language": language, "model": model,
-                "fix_patch": fix_patch, "status": "pass",
-                "rounds_used": round_num,
+                "fix_patch": last_patch or "", "status": "fail",
+                "final_fail_type": last_result_type, "rounds_used": max_rounds,
             }
-
-        # Fail -> chuan bi log loi cho vong sau
-        previous_error = run_poc_msg or "Khong co log loi chi tiet."
-        print(f"    [FAIL] {cve_id} ({validation_type}) — thu lai..." if round_num < max_rounds
-              else f"    [FAIL] {cve_id} ({validation_type}) — het so vong, dung lai.")
-
-    return {
-        "cve": cve_id, "language": language, "model": model,
-        "fix_patch": last_patch or "", "status": "fail",
-        "final_fail_type": last_result_type, "rounds_used": max_rounds,
-    }
+        return res
+    finally:
+        if remove_images:
+            try:
+                cl = docker.from_env()
+                safe_remove_image(cl, image_name, logger, cve_id)
+                prune_docker_resources(cl, logger, cve_id)
+            except Exception:
+                pass
 
 
 def main():
@@ -402,6 +417,8 @@ def main():
     ap.add_argument("--max_tokens", type=int, default=6000)
     ap.add_argument("--max_rounds", type=int, default=3, help="So vong tu sua toi da moi CVE")
     ap.add_argument("--limit", type=int, default=-1, help="-1 = chay het")
+    ap.add_argument("--remove_images", action="store_true", default=True, help="Remove Docker images after each CVE (default: True)")
+    ap.add_argument("--keep_images", dest="remove_images", action="store_false", help="Keep Docker images after each CVE")
     args = ap.parse_args()
 
     if args.model is None:
@@ -444,7 +461,7 @@ def main():
     n_pass, n_fail = 0, 0
     for i, cve_record in enumerate(items):
         result = self_repair_one_cve(cve_record, args.provider, api_key, args.model, args.max_tokens,
-                                      args.max_rounds, logger)
+                                      args.max_rounds, logger, remove_images=args.remove_images)
         with open(args.output, "a", encoding="utf-8", newline="\n") as f:
             f.write(json.dumps(result, ensure_ascii=False) + "\n")
 

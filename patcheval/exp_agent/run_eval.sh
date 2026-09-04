@@ -39,6 +39,14 @@ python "${SCRIPT_DIR}/process_data.py" \
     --remove_images
 )
 
+# ── Docker cleanup ────────────────────────────────────────────────────────────
+stale_containers=$(docker ps -aq --filter "status=exited" --filter "status=created" 2>/dev/null || true)
+if [[ -n "$stale_containers" ]]; then
+  # shellcheck disable=SC2086
+  docker rm -f $stale_containers 2>/dev/null || true
+fi
+docker system prune -f 2>/dev/null || true
+
 # ── Save evaluation results & failure analysis for EDA ─────────────────────
 eval_dir="${SCRIPT_DIR}/../evaluation/evaluation_output/results/${PREFIX}"
 if [[ ! -d "$eval_dir" ]]; then

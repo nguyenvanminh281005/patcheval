@@ -29,6 +29,50 @@ import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
+def safe_remove_image(client: docker.DockerClient, image_name: str, logger: logging.Logger = None, cve: str = "") -> bool:
+    """Safely remove a Docker image if no running container is using it."""
+    if not image_name:
+        return False
+    try:
+        running_containers = client.containers.list(filters={"status": "running"})
+        for c in running_containers:
+            try:
+                tags = c.image.tags if c.image and c.image.tags else []
+                if image_name in tags or (c.image and c.image.id == image_name):
+                    if logger:
+                        logger.debug(f"Image {image_name} is in use by running container {c.name}, skipping immediate removal", extra={"cve": cve})
+                    return False
+            except Exception:
+                continue
+        
+        client.images.remove(image_name, force=True)
+        if logger:
+            logger.info(f"Successfully removed Docker image: {image_name}", extra={"cve": cve})
+        return True
+    except docker.errors.ImageNotFound:
+        return True
+    except Exception as e:
+        if logger:
+            logger.debug(f"Could not remove image {image_name}: {e}", extra={"cve": cve})
+        return False
+
+
+def prune_docker_resources(client: docker.DockerClient, logger: logging.Logger = None, cve: str = "") -> None:
+    """Prune stopped containers, dangling images, and anonymous volumes to prevent disk exhaustion."""
+    try:
+        client.containers.prune()
+    except Exception:
+        pass
+    try:
+        client.images.prune(filters={'dangling': True})
+    except Exception:
+        pass
+    try:
+        client.volumes.prune()
+    except Exception:
+        pass
+
+
 class DockerManager:
     """A small facade around Docker Python SDK."""
 
@@ -36,6 +80,7 @@ class DockerManager:
         self.logger = logger
         self.cve = cve
         self.client = docker.from_env()
+        self._tmp_patch_path = None
 
     def start_container(self, image_name: str, container_name: str, llm_patch: str) -> str | None:
         """
@@ -43,8 +88,8 @@ class DockerManager:
         If llm_patch is provided, create a temp file and mount it to /workspace/fix.patch in the container.
         """
         def _create_patch_file(llm_patch):
-            fd, tmp_file_path = tempfile.mkstemp(suffix='.patch')
-            with os.fdopen(fd, 'w', encoding='utf-8') as tmp_file:
+            fd, tmp_file_path = tempfile.mkstemp(suffix='.patch', dir=os.getcwd())
+            with os.fdopen(fd, 'w', encoding='utf-8', newline='\n') as tmp_file:
                 tmp_file.write(llm_patch)
                 if not llm_patch.endswith('\n'):
                     tmp_file.write('\n')
@@ -62,24 +107,36 @@ class DockerManager:
                 stdin_open=True,
                 volumes=volumes
             )
+            # Store temp path to be unlinked in rm_container when finished
+            self._tmp_patch_path = tmp_file_path
             return container_name
         except Exception as e:
             self.logger.debug(f"Failed to start container: {e}", extra={"cve": self.cve})
-            return None
-        finally:
-            # clean up temp file
             if tmp_file_path and os.path.exists(tmp_file_path):
-                os.unlink(tmp_file_path)
-                tmp_file_path = None
+                try:
+                    os.unlink(tmp_file_path)
+                except Exception:
+                    pass
+            return None
 
     def rm_container(self, container_name: str) -> None:
         """Stop and remove the container if it exists. Also remove temp patch file if exists."""
         try:
             container = self.client.containers.get(container_name)
-            container.stop()
-            container.remove(force=True)
+            try:
+                container.stop(timeout=5)
+            except Exception:
+                pass
+            container.remove(force=True, v=True)
         except Exception as e:
             self.logger.debug(f"Failed to remove container: {e}", extra={"cve": self.cve})
+        finally:
+            tmp_path = getattr(self, "_tmp_patch_path", None)
+            if tmp_path and os.path.exists(tmp_path):
+                try:
+                    os.unlink(tmp_path)
+                except Exception as e:
+                    self.logger.debug(f"Failed to remove temp patch file: {e}", extra={"cve": self.cve})
 
     def exec_container(self, container_name: str, cmd: str, timeout: int = 600) -> Tuple[Optional[str], Optional[str]]:
         """Execute a command inside the container using bash -c."""
@@ -176,11 +233,11 @@ class Evaluation:
             self.logger.info(f"Finish eval and remove container {container_name}")
 
         if run_poc_result:
-            errpr_type="Repair Success"
-        elif run_poc_result==False and run_poc_msg is not None:
-            errpr_type=self._error_type(run_poc_msg, language)
+            errpr_type = "Repair Success"
+        elif run_poc_result is False and run_poc_msg is not None:
+            errpr_type = self._error_type(run_poc_msg, language)
         else:
-            errpr_type=None
+            errpr_type = None
             
         return run_poc_result, run_poc_msg, errpr_type
 
@@ -240,7 +297,7 @@ def main():
             filtered_patchs.append(p)
         patchs = filtered_patchs
 
-    if args.limit:
+    if args.limit and args.limit > 0:
         patchs = patchs[:args.limit]
 
     cve2lang, cve2image = _init()
@@ -250,6 +307,15 @@ def main():
         log_level = logging.INFO
     main_logger = utils.get_logger(f"./evaluation_output/{args.output}/run_evaluation.log", log_level)
     main_logger.info(args, extra={'cve': 'SETUP'})
+
+    # Initial cleanup to ensure clean Docker state
+    if getattr(args, 'remove_images', False):
+        try:
+            init_docker_client = docker.from_env()
+            prune_docker_resources(init_docker_client)
+        except Exception:
+            pass
+
     def process_patch(patch):
         cve, fix_patch = patch['cve'], patch['fix_patch']
         
@@ -295,43 +361,49 @@ def main():
                 f.write(str(e))
             return (cve, language, validation_type, image_name, False, True)  
         finally:
+            # Per-task image and resource cleanup immediately after each evaluation
+            if getattr(args, 'remove_images', False):
+                try:
+                    task_docker_client = docker.from_env()
+                    safe_remove_image(task_docker_client, image_name, task_logger, cve)
+                    prune_docker_resources(task_docker_client, task_logger, cve)
+                except Exception as clean_err:
+                    task_logger.debug(f"Per-task cleanup error for {image_name}: {clean_err}", extra={"cve": cve})
             buffer_handler.flush()
             buffer_handler.close()
             task_logger.removeHandler(buffer_handler)
             
-    # ── Pre-pull Docker images so workers don't silently stall at 0% ──────────
-    images_needed = set()
-    for patch in patchs:
-        img = patch.get("image_url") or cve2image.get(patch["cve"])
-        if img:
-            images_needed.add(img)
+    # Optional pre-pulling (ONLY when user explicitly requests --pre_pull and NOT --remove_images)
+    if getattr(args, 'pre_pull', False) and not getattr(args, 'remove_images', False):
+        images_needed = set()
+        for patch in patchs:
+            img = patch.get("image_url") or cve2image.get(patch["cve"])
+            if img:
+                images_needed.add(img)
 
-    if images_needed:
-        pull_client = docker.from_env()
-        local_images = set()
-        for img_obj in pull_client.images.list():
-            local_images.update(img_obj.tags)
+        if images_needed:
+            pull_client = docker.from_env()
+            local_images = set()
+            for img_obj in pull_client.images.list():
+                local_images.update(img_obj.tags)
 
-        to_pull = [img for img in sorted(images_needed) if img not in local_images]
-        if to_pull:
-            main_logger.info(
-                f"Pre-pulling {len(to_pull)} Docker image(s) before evaluation "
-                f"(this may take a while)...",
-                extra={"cve": "SETUP"}
-            )
-            print(f"[Step] Pre-pulling {len(to_pull)} Docker image(s) — please wait...")
-            for i, img in enumerate(to_pull, 1):
-                print(f"  [{i}/{len(to_pull)}] Pulling {img} ...", flush=True)
-                try:
-                    pull_client.images.pull(img)
-                    print(f"  [{i}/{len(to_pull)}] ✓ Done: {img}")
-                    main_logger.info(f"Pulled image: {img}", extra={"cve": "SETUP"})
-                except Exception as pull_err:
-                    print(f"  [{i}/{len(to_pull)}] ✗ Failed to pull {img}: {pull_err}")
-                    main_logger.warning(f"Failed to pull {img}: {pull_err}", extra={"cve": "SETUP"})
-            print("[✓] Image pre-pull complete.\n")
-        else:
-            print("[✓] All required Docker images already cached locally.\n")
+            to_pull = [img for img in sorted(images_needed) if img not in local_images]
+            if to_pull:
+                main_logger.info(
+                    f"Pre-pulling {len(to_pull)} Docker image(s) before evaluation...",
+                    extra={"cve": "SETUP"}
+                )
+                print(f"[Step] Pre-pulling {len(to_pull)} Docker image(s) — please wait...")
+                for i, img in enumerate(to_pull, 1):
+                    print(f"  [{i}/{len(to_pull)}] Pulling {img} ...", flush=True)
+                    try:
+                        pull_client.images.pull(img)
+                        print(f"  [{i}/{len(to_pull)}] ✓ Done: {img}")
+                        main_logger.info(f"Pulled image: {img}", extra={"cve": "SETUP"})
+                    except Exception as pull_err:
+                        print(f"  [{i}/{len(to_pull)}] ✗ Failed to pull {img}: {pull_err}")
+                        main_logger.warning(f"Failed to pull {img}: {pull_err}", extra={"cve": "SETUP"})
+                print("[✓] Image pre-pull complete.\n")
 
     # Multi-threaded execution
     all_results = []
@@ -441,16 +513,17 @@ def main():
     with open(f"./evaluation_output/{args.output}/summary.json", 'w') as f:
         json.dump(full_json_summary, f, indent=4)
 
+    # Final cleanup sweep
     if getattr(args, 'remove_images', False):
-        main_logger.info("Cleaning up Docker images used in this run...", extra={'cve': 'CLEANUP'})
-        client = docker.from_env()
-        images_to_remove = set([res[3] for res in all_results if res[3]])
-        for img in images_to_remove:
-            try:
-                client.images.remove(img, force=True)
-                main_logger.info(f"Successfully removed image: {img}", extra={'cve': 'CLEANUP'})
-            except Exception as e:
-                main_logger.warning(f"Failed to remove image {img}: {e}", extra={'cve': 'CLEANUP'})
+        main_logger.info("Final cleanup of any remaining Docker images...", extra={'cve': 'CLEANUP'})
+        try:
+            client = docker.from_env()
+            images_to_remove = set([res[3] for res in all_results if res[3]])
+            for img in images_to_remove:
+                safe_remove_image(client, img, main_logger, "CLEANUP")
+            prune_docker_resources(client, main_logger, "CLEANUP")
+        except Exception as e:
+            main_logger.warning(f"Final cleanup error: {e}", extra={'cve': 'CLEANUP'})
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -463,5 +536,6 @@ if __name__ == "__main__":
     parser.add_argument("--skip_existing", action="store_true", required=False, help="Skip already evaluated patches")
     parser.add_argument("--limit", type=int, required=False, help="Limit the total number of new cases to evaluate")
     parser.add_argument("--remove_images", action="store_true", required=False, help="Remove Docker images after evaluation to save space")
+    parser.add_argument("--pre_pull", action="store_true", default=False, required=False, help="Pre-pull all images before evaluation (only if disk is sufficient)")
     args = parser.parse_args()
     main()
