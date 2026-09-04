@@ -1,0 +1,16 @@
+============================================================
+       PoC Evaluation Summary (REBUILT - cumulative)        
+============================================================
+Total Cases Evaluated: 70
+Total Successful Repairs: 19
+Overall Pass Rate: 27.14%
+------------------------------------------------------------
+Success Breakdown by Language:
+  - Python: 19
+============================================================
+
+============================================================
+                      Failure Analysis                      
+============================================================
+- Python_compilation_fail: 1
+- Python_validation_fail: 50

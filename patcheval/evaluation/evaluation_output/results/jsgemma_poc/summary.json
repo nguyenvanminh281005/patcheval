@@ -1,0 +1,41 @@
+{
+    "poc_evaluation": {
+        "title": "PoC Evaluation Summary",
+        "total_cases": 16,
+        "total_success": 2,
+        "pass_rate": "12.50%",
+        "success_breakdown": {
+            "JavaScript": 2
+        },
+        "successful_cves": {
+            "JavaScript": [
+                "CVE-2020-7687",
+                "CVE-2020-7675"
+            ]
+        }
+    },
+    "failure_analysis": {
+        "breakdown": {
+            "JavaScript_validation_fail": 14
+        },
+        "failed_cves": {
+            "JavaScript_validation_fail": [
+                "CVE-2021-21384",
+                "CVE-2022-0235",
+                "CVE-2024-30260",
+                "CVE-2022-2900",
+                "CVE-2022-0436",
+                "CVE-2020-7781",
+                "CVE-2024-53900",
+                "CVE-2021-37712",
+                "CVE-2022-0155",
+                "CVE-2018-3785",
+                "CVE-2021-23384",
+                "CVE-2021-37713",
+                "CVE-2021-23387",
+                "CVE-2018-3778"
+            ]
+        }
+    },
+    "execution_errors": []
+}

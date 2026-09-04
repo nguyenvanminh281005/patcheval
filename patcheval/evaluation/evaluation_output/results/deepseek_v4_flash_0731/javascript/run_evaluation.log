@@ -1,0 +1,18 @@
+2026-08-29 17:48:01,098 - INFO - [SETUP] - Namespace(output='results/deepseek_v4_flash_0731/javascript', patch_file='/home/txiieyy/Downloads/hi/patcheval/patcheval/exp_agent/eval_inputs/deepseek_v4_flash_0731/javascript.jsonl', input_file='/home/txiieyy/Downloads/hi/patcheval/patcheval/exp_agent/../datasets/patcheval_verified_js.json', log_level='INFO', max_workers=4, cves=None, skip_existing=True, limit=20, remove_images=True, pre_pull=False)
+2026-08-29 17:48:01,135 - INFO - [SUMMARY] - --- FINAL EVALUATION REPORT ---
+2026-08-29 17:48:01,135 - INFO - [SUMMARY] - ============================================================
+2026-08-29 17:48:01,135 - INFO - [SUMMARY] -                    PoC Evaluation Summary                   
+2026-08-29 17:48:01,135 - INFO - [SUMMARY] - ============================================================
+2026-08-29 17:48:01,135 - INFO - [SUMMARY] - Total Cases Evaluated: 0
+2026-08-29 17:48:01,136 - INFO - [SUMMARY] - Total Successful Repairs: 0
+2026-08-29 17:48:01,136 - INFO - [SUMMARY] - Overall Pass Rate: 0.00%
+2026-08-29 17:48:01,136 - INFO - [SUMMARY] - ------------------------------------------------------------
+2026-08-29 17:48:01,136 - INFO - [SUMMARY] - Success Breakdown by Language:
+2026-08-29 17:48:01,136 - INFO - [SUMMARY] -   None
+2026-08-29 17:48:01,136 - INFO - [SUMMARY] - ============================================================
+2026-08-29 17:48:01,136 - INFO - [SUMMARY] - ============================================================
+2026-08-29 17:48:01,136 - INFO - [SUMMARY] -                       Failure Analysis                      
+2026-08-29 17:48:01,136 - INFO - [SUMMARY] - ============================================================
+2026-08-29 17:48:01,136 - INFO - [SUMMARY] - No failures recorded.
+2026-08-29 17:48:01,136 - INFO - [SUMMARY] - 
+2026-08-29 17:48:01,136 - INFO - [CLEANUP] - Final cleanup of any remaining Docker images...

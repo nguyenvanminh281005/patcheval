@@ -1,0 +1,18 @@
+2026-08-14 16:50:54,057 - INFO - [SETUP] - Namespace(output='results/go_poc', patch_file='/home/txiieyy/Downloads/hi/patcheval/patcheval/exp_agent/eval_inputs/go_poc.jsonl', input_file='/home/txiieyy/Downloads/hi/patcheval/patcheval/exp_agent/../datasets/patcheval_verified_go.json', log_level='INFO', max_workers=4, cves=None, skip_existing=True, limit=1, remove_images=True)
+2026-08-14 16:50:54,061 - INFO - [SUMMARY] - --- FINAL EVALUATION REPORT ---
+2026-08-14 16:50:54,061 - INFO - [SUMMARY] - ============================================================
+2026-08-14 16:50:54,061 - INFO - [SUMMARY] -                    PoC Evaluation Summary                   
+2026-08-14 16:50:54,061 - INFO - [SUMMARY] - ============================================================
+2026-08-14 16:50:54,061 - INFO - [SUMMARY] - Total Cases Evaluated: 0
+2026-08-14 16:50:54,061 - INFO - [SUMMARY] - Total Successful Repairs: 0
+2026-08-14 16:50:54,061 - INFO - [SUMMARY] - Overall Pass Rate: 0.00%
+2026-08-14 16:50:54,061 - INFO - [SUMMARY] - ------------------------------------------------------------
+2026-08-14 16:50:54,061 - INFO - [SUMMARY] - Success Breakdown by Language:
+2026-08-14 16:50:54,062 - INFO - [SUMMARY] -   None
+2026-08-14 16:50:54,062 - INFO - [SUMMARY] - ============================================================
+2026-08-14 16:50:54,062 - INFO - [SUMMARY] - ============================================================
+2026-08-14 16:50:54,062 - INFO - [SUMMARY] -                       Failure Analysis                      
+2026-08-14 16:50:54,062 - INFO - [SUMMARY] - ============================================================
+2026-08-14 16:50:54,062 - INFO - [SUMMARY] - No failures recorded.
+2026-08-14 16:50:54,062 - INFO - [SUMMARY] - 
+2026-08-14 16:50:54,062 - INFO - [CLEANUP] - Cleaning up Docker images used in this run...

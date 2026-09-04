@@ -1,0 +1,25 @@
+{
+    "poc_evaluation": {
+        "title": "PoC Evaluation Summary",
+        "total_cases": 5,
+        "total_success": 0,
+        "pass_rate": "0.00%",
+        "success_breakdown": {},
+        "successful_cves": {}
+    },
+    "failure_analysis": {
+        "breakdown": {
+            "Go_validation_fail": 5
+        },
+        "failed_cves": {
+            "Go_validation_fail": [
+                "CVE-2025-24806",
+                "CVE-2023-22736",
+                "CVE-2024-25620",
+                "CVE-2022-1986",
+                "CVE-2025-48374"
+            ]
+        }
+    },
+    "execution_errors": []
+}

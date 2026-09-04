@@ -1,0 +1,21 @@
+{
+    "poc_evaluation": {
+        "title": "PoC Evaluation Summary",
+        "total_cases": 1,
+        "total_success": 0,
+        "pass_rate": "0.00%",
+        "success_breakdown": {},
+        "successful_cves": {}
+    },
+    "failure_analysis": {
+        "breakdown": {
+            "JavaScript_validation_fail": 1
+        },
+        "failed_cves": {
+            "JavaScript_validation_fail": [
+                "CVE-2022-2900"
+            ]
+        }
+    },
+    "execution_errors": []
+}

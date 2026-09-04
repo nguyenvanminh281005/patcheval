@@ -1,0 +1,26 @@
+2026-08-24 19:06:54,053 - INFO - [SETUP] - Namespace(output='deepseek_v4_flash_0731/go', patch_file='/home/txiieyy/Downloads/hi/patcheval/patcheval/exp_agent/eval_inputs/deepseek_v4_flash_0731/go.jsonl', input_file='/home/txiieyy/Downloads/hi/patcheval/patcheval/exp_agent/../datasets/patcheval_verified_go.json', log_level='INFO', max_workers=4, cves=None, skip_existing=False, limit=-1, remove_images=True)
+2026-08-24 19:06:54,102 - INFO - [SETUP] - Pre-pulling 72 Docker image(s) before evaluation (this may take a while)...
+2026-08-24 19:16:02,688 - INFO - [SETUP] - Pulled image: ghcr.io/patcheval-cve/patcheval-cve:cve-2018-12976
+2026-08-24 19:29:19,324 - INFO - [SETUP] - Pulled image: ghcr.io/patcheval-cve/patcheval-cve:cve-2019-19499
+2026-08-24 19:35:41,435 - INFO - [SETUP] - Pulled image: ghcr.io/patcheval-cve/patcheval-cve:cve-2020-11053
+2026-08-24 19:40:41,962 - INFO - [SETUP] - Pulled image: ghcr.io/patcheval-cve/patcheval-cve:cve-2020-15233
+2026-08-24 19:41:44,669 - INFO - [SETUP] - Pulled image: ghcr.io/patcheval-cve/patcheval-cve:cve-2020-26294
+2026-08-24 19:45:35,592 - INFO - [SETUP] - Pulled image: ghcr.io/patcheval-cve/patcheval-cve:cve-2020-4037
+2026-08-24 19:52:04,044 - INFO - [SETUP] - Pulled image: ghcr.io/patcheval-cve/patcheval-cve:cve-2020-4053
+2026-08-24 20:09:19,771 - INFO - [SETUP] - Pulled image: ghcr.io/patcheval-cve/patcheval-cve:cve-2020-8559
+2026-08-24 20:14:55,135 - INFO - [SETUP] - Pulled image: ghcr.io/patcheval-cve/patcheval-cve:cve-2021-21291
+2026-08-24 20:22:12,087 - INFO - [SETUP] - Pulled image: ghcr.io/patcheval-cve/patcheval-cve:cve-2021-21411
+2026-08-24 20:23:29,959 - INFO - [SETUP] - Pulled image: ghcr.io/patcheval-cve/patcheval-cve:cve-2021-21432
+2026-08-24 20:31:16,179 - INFO - [SETUP] - Pulled image: ghcr.io/patcheval-cve/patcheval-cve:cve-2021-22538
+2026-08-24 20:51:27,225 - INFO - [SETUP] - Pulled image: ghcr.io/patcheval-cve/patcheval-cve:cve-2021-26921
+2026-08-24 21:10:43,988 - INFO - [SETUP] - Pulled image: ghcr.io/patcheval-cve/patcheval-cve:cve-2021-29417
+2026-08-24 21:21:33,974 - INFO - [SETUP] - Pulled image: ghcr.io/patcheval-cve/patcheval-cve:cve-2021-3155
+2026-08-24 21:52:36,147 - INFO - [SETUP] - Pulled image: ghcr.io/patcheval-cve/patcheval-cve:cve-2021-32701
+2026-08-24 22:09:10,942 - INFO - [SETUP] - Pulled image: ghcr.io/patcheval-cve/patcheval-cve:cve-2021-32783
+2026-08-24 22:11:42,207 - INFO - [SETUP] - Pulled image: ghcr.io/patcheval-cve/patcheval-cve:cve-2021-36157
+2026-08-24 22:20:47,377 - WARNING - [SETUP] - Failed to pull ghcr.io/patcheval-cve/patcheval-cve:cve-2021-43798: 404 Client Error for http+docker://localhost/v1.49/images/ghcr.io/patcheval-cve/patcheval-cve:cve-2021-43798/json: Not Found ("No such image: ghcr.io/patcheval-cve/patcheval-cve:cve-2021-43798")
+2026-08-24 22:21:49,273 - WARNING - [SETUP] - Failed to pull ghcr.io/patcheval-cve/patcheval-cve:cve-2022-1883: 404 Client Error for http+docker://localhost/v1.49/images/ghcr.io/patcheval-cve/patcheval-cve:cve-2022-1883/json: Not Found ("No such image: ghcr.io/patcheval-cve/patcheval-cve:cve-2022-1883")
+2026-08-24 22:30:23,901 - WARNING - [SETUP] - Failed to pull ghcr.io/patcheval-cve/patcheval-cve:cve-2022-1986: 404 Client Error for http+docker://localhost/v1.49/images/ghcr.io/patcheval-cve/patcheval-cve:cve-2022-1986/json: Not Found ("No such image: ghcr.io/patcheval-cve/patcheval-cve:cve-2022-1986")
+2026-08-24 22:41:12,011 - WARNING - [SETUP] - Failed to pull ghcr.io/patcheval-cve/patcheval-cve:cve-2022-1992: 404 Client Error for http+docker://localhost/v1.49/images/ghcr.io/patcheval-cve/patcheval-cve:cve-2022-1992/json: Not Found ("No such image: ghcr.io/patcheval-cve/patcheval-cve:cve-2022-1992")
+2026-08-24 22:47:40,290 - WARNING - [SETUP] - Failed to pull ghcr.io/patcheval-cve/patcheval-cve:cve-2022-2024: 404 Client Error for http+docker://localhost/v1.49/images/ghcr.io/patcheval-cve/patcheval-cve:cve-2022-2024/json: Not Found ("No such image: ghcr.io/patcheval-cve/patcheval-cve:cve-2022-2024")
+2026-08-24 22:52:24,852 - WARNING - [SETUP] - Failed to pull ghcr.io/patcheval-cve/patcheval-cve:cve

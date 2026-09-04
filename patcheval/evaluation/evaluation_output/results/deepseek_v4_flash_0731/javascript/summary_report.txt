@@ -1,0 +1,16 @@
+============================================================
+       PoC Evaluation Summary (REBUILT - cumulative)        
+============================================================
+Total Cases Evaluated: 76
+Total Successful Repairs: 27
+Overall Pass Rate: 35.53%
+------------------------------------------------------------
+Success Breakdown by Language:
+  - JavaScript: 27
+============================================================
+
+============================================================
+                      Failure Analysis                      
+============================================================
+- JavaScript_compilation_fail: 3
+- JavaScript_validation_fail: 46
