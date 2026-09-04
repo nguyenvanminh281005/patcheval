@@ -1,0 +1,67 @@
+2026-08-21 14:12:50,554 - INFO - [SETUP] - Namespace(output='results/jsgemma_poc', patch_file='/home/txiieyy/Downloads/hi/patcheval/patcheval/exp_agent/eval_inputs/jsgemma_poc.jsonl', input_file='/home/txiieyy/Downloads/hi/patcheval/patcheval/exp_agent/../datasets/patcheval_verified_js.json', log_level='INFO', max_workers=4, cves=None, skip_existing=True, limit=20, remove_images=True)
+2026-08-21 14:12:50,613 - INFO - [SETUP] - Pre-pulling 16 Docker image(s) before evaluation (this may take a while)...
+2026-08-21 14:24:36,771 - INFO - [SETUP] - Pulled image: ghcr.io/patcheval-cve/patcheval-cve:cve-2018-3778
+2026-08-21 14:28:02,362 - INFO - [SETUP] - Pulled image: ghcr.io/patcheval-cve/patcheval-cve:cve-2018-3785
+2026-08-21 14:32:09,411 - INFO - [SETUP] - Pulled image: ghcr.io/patcheval-cve/patcheval-cve:cve-2020-7675
+2026-08-21 14:39:51,098 - INFO - [SETUP] - Pulled image: ghcr.io/patcheval-cve/patcheval-cve:cve-2020-7687
+2026-08-21 14:45:32,362 - INFO - [SETUP] - Pulled image: ghcr.io/patcheval-cve/patcheval-cve:cve-2020-7781
+2026-08-21 14:49:44,983 - INFO - [SETUP] - Pulled image: ghcr.io/patcheval-cve/patcheval-cve:cve-2021-21384
+2026-08-21 14:55:31,406 - INFO - [SETUP] - Pulled image: ghcr.io/patcheval-cve/patcheval-cve:cve-2021-23384
+2026-08-21 14:58:32,159 - INFO - [SETUP] - Pulled image: ghcr.io/patcheval-cve/patcheval-cve:cve-2021-23387
+2026-08-21 15:02:56,314 - INFO - [SETUP] - Pulled image: ghcr.io/patcheval-cve/patcheval-cve:cve-2021-37712
+2026-08-21 15:06:26,320 - INFO - [SETUP] - Pulled image: ghcr.io/patcheval-cve/patcheval-cve:cve-2021-37713
+2026-08-21 15:16:42,773 - INFO - [SETUP] - Pulled image: ghcr.io/patcheval-cve/patcheval-cve:cve-2022-0155
+2026-08-21 15:23:57,605 - INFO - [SETUP] - Pulled image: ghcr.io/patcheval-cve/patcheval-cve:cve-2022-0235
+2026-08-21 15:34:46,915 - INFO - [SETUP] - Pulled image: ghcr.io/patcheval-cve/patcheval-cve:cve-2022-0436
+2026-08-21 15:47:55,494 - INFO - [SETUP] - Pulled image: ghcr.io/patcheval-cve/patcheval-cve:cve-2022-2900
+2026-08-21 15:54:04,258 - INFO - [SETUP] - Pulled image: ghcr.io/patcheval-cve/patcheval-cve:cve-2024-30260
+2026-08-21 16:04:16,360 - INFO - [SETUP] - Pulled image: ghcr.io/patcheval-cve/patcheval-cve:cve-2024-53900
+2026-08-21 16:04:27,691 - INFO - [CVE-2021-21384] - Finish eval and remove container run_evaluation_cve-2021-21384_tmp_3885be5c
+2026-08-21 16:04:27,753 - INFO - [CVE-2022-0235] - Finish eval and remove container run_evaluation_cve-2022-0235_tmp_0d81d3e7
+2026-08-21 16:04:28,410 - INFO - [CVE-2024-30260] - Finish eval and remove container run_evaluation_cve-2024-30260_tmp_c6899b98
+2026-08-21 16:04:29,251 - INFO - [CVE-2020-7687] - Finish eval and remove container run_evaluation_cve-2020-7687_tmp_6aefb554
+2026-08-21 16:04:38,373 - INFO - [CVE-2022-2900] - Finish eval and remove container run_evaluation_cve-2022-2900_tmp_1470b7d4
+2026-08-21 16:04:38,807 - INFO - [CVE-2022-0436] - Finish eval and remove container run_evaluation_cve-2022-0436_tmp_11273f11
+2026-08-21 16:04:39,898 - INFO - [CVE-2020-7781] - Finish eval and remove container run_evaluation_cve-2020-7781_tmp_0919d59b
+2026-08-21 16:04:40,541 - INFO - [CVE-2020-7675] - Finish eval and remove container run_evaluation_cve-2020-7675_tmp_e7364e3c
+2026-08-21 16:04:48,880 - INFO - [CVE-2024-53900] - Finish eval and remove container run_evaluation_cve-2024-53900_tmp_7c2885f4
+2026-08-21 16:04:50,785 - INFO - [CVE-2021-37712] - Finish eval and remove container run_evaluation_cve-2021-37712_tmp_7aef0c95
+2026-08-21 16:04:51,275 - INFO - [CVE-2022-0155] - Finish eval and remove container run_evaluation_cve-2022-0155_tmp_1dc766fa
+2026-08-21 16:04:53,689 - INFO - [CVE-2018-3785] - Finish eval and remove container run_evaluation_cve-2018-3785_tmp_13d51377
+2026-08-21 16:05:01,940 - INFO - [CVE-2021-23384] - Finish eval and remove container run_evaluation_cve-2021-23384_tmp_30a33b6b
+2026-08-21 16:05:02,025 - INFO - [CVE-2021-37713] - Finish eval and remove container run_evaluation_cve-2021-37713_tmp_21e8a360
+2026-08-21 16:05:02,509 - INFO - [CVE-2021-23387] - Finish eval and remove container run_evaluation_cve-2021-23387_tmp_45a14d84
+2026-08-21 16:05:04,224 - INFO - [CVE-2018-3778] - Finish eval and remove container run_evaluation_cve-2018-3778_tmp_5215c00d
+2026-08-21 16:05:04,226 - INFO - [SUMMARY] - --- FINAL EVALUATION REPORT ---
+2026-08-21 16:05:04,227 - INFO - [SUMMARY] - ============================================================
+2026-08-21 16:05:04,227 - INFO - [SUMMARY] -                    PoC Evaluation Summary                   
+2026-08-21 16:05:04,227 - INFO - [SUMMARY] - ============================================================
+2026-08-21 16:05:04,227 - INFO - [SUMMARY] - Total Cases Evaluated: 16
+2026-08-21 16:05:04,227 - INFO - [SUMMARY] - Total Successful Repairs: 2
+2026-08-21 16:05:04,227 - INFO - [SUMMARY] - Overall Pass Rate: 12.50%
+2026-08-21 16:05:04,227 - INFO - [SUMMARY] - ------------------------------------------------------------
+2026-08-21 16:05:04,227 - INFO - [SUMMARY] - Success Breakdown by Language:
+2026-08-21 16:05:04,227 - INFO - [SUMMARY] -   - JavaScript: 2
+2026-08-21 16:05:04,227 - INFO - [SUMMARY] - ============================================================
+2026-08-21 16:05:04,227 - INFO - [SUMMARY] - ============================================================
+2026-08-21 16:05:04,227 - INFO - [SUMMARY] -                       Failure Analysis                      
+2026-08-21 16:05:04,228 - INFO - [SUMMARY] - ============================================================
+2026-08-21 16:05:04,228 - INFO - [SUMMARY] - - JavaScript_validation_fail: 14
+2026-08-21 16:05:04,228 - INFO - [SUMMARY] - 
+2026-08-21 16:05:04,229 - INFO - [CLEANUP] - Cleaning up Docker images used in this run...
+2026-08-21 16:05:06,419 - INFO - [CLEANUP] - Successfully removed image: ghcr.io/patcheval-cve/patcheval-cve:cve-2018-3778
+2026-08-21 16:05:07,698 - INFO - [CLEANUP] - Successfully removed image: ghcr.io/patcheval-cve/patcheval-cve:cve-2020-7781
+2026-08-21 16:05:11,000 - INFO - [CLEANUP] - Successfully removed image: ghcr.io/patcheval-cve/patcheval-cve:cve-2024-30260
+2026-08-21 16:05:12,221 - INFO - [CLEANUP] - Successfully removed image: ghcr.io/patcheval-cve/patcheval-cve:cve-2020-7687
+2026-08-21 16:05:15,079 - INFO - [CLEANUP] - Successfully removed image: ghcr.io/patcheval-cve/patcheval-cve:cve-2020-7675
+2026-08-21 16:05:17,134 - INFO - [CLEANUP] - Successfully removed image: ghcr.io/patcheval-cve/patcheval-cve:cve-2021-37712
+2026-08-21 16:05:19,391 - INFO - [CLEANUP] - Successfully removed image: ghcr.io/patcheval-cve/patcheval-cve:cve-2018-3785
+2026-08-21 16:05:21,439 - INFO - [CLEANUP] - Successfully removed image: ghcr.io/patcheval-cve/patcheval-cve:cve-2021-23384
+2026-08-21 16:05:24,186 - INFO - [CLEANUP] - Successfully removed image: ghcr.io/patcheval-cve/patcheval-cve:cve-2022-0235
+2026-08-21 16:05:26,502 - INFO - [CLEANUP] - Successfully removed image: ghcr.io/patcheval-cve/patcheval-cve:cve-2022-0436
+2026-08-21 16:05:28,151 - INFO - [CLEANUP] - Successfully removed image: ghcr.io/patcheval-cve/patcheval-cve:cve-2022-2900
+2026-08-21 16:05:29,929 - INFO - [CLEANUP] - Successfully removed image: ghcr.io/patcheval-cve/patcheval-cve:cve-2021-21384
+2026-08-21 16:05:32,463 - INFO - [CLEANUP] - Successfully removed image: ghcr.io/patcheval-cve/patcheval-cve:cve-2024-53900
+2026-08-21 16:05:34,180 - INFO - [CLEANUP] - Successfully removed image: ghcr.io/patcheval-cve/patcheval-cve:cve-2022-0155
+2026-08-21 16:05:36,158 - INFO - [CLEANUP] - Successfully removed image: ghcr.io/patcheval-cve/patcheval-cve:cve-2021-37713
+2026-08-21 16:05:38,071 - INFO - [CLEANUP] - Successfully removed image: ghcr.io/patcheval-cve/patcheval-cve:cve-2021-23387

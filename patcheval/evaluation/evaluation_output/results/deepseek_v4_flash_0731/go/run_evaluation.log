@@ -1,0 +1,165 @@
+2026-08-26 11:20:55,963 - INFO - [SETUP] - Namespace(output='results/deepseek_v4_flash_0731/go', patch_file='/home/txiieyy/Downloads/hi/patcheval/patcheval/exp_agent/eval_inputs/deepseek_v4_flash_0731/go.jsonl', input_file='/home/txiieyy/Downloads/hi/patcheval/patcheval/exp_agent/../datasets/patcheval_verified_go.json', log_level='INFO', max_workers=4, cves=None, skip_existing=True, limit=-1, remove_images=True, pre_pull=False)
+2026-08-26 11:25:19,177 - INFO - [CVE-2021-21291] - Finish eval and remove container run_evaluation_cve-2021-21291_tmp_b38b7a17
+2026-08-26 11:25:19,978 - INFO - [CVE-2021-21291] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2021-21291
+2026-08-26 11:30:08,159 - INFO - [CVE-2020-8559] - Finish eval and remove container run_evaluation_cve-2020-8559_tmp_f6f4be5e
+2026-08-26 11:30:11,342 - INFO - [CVE-2020-8559] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2020-8559
+2026-08-26 11:32:53,371 - INFO - [CVE-2021-21432] - Finish eval and remove container run_evaluation_cve-2021-21432_tmp_a882f8ff
+2026-08-26 11:32:54,394 - INFO - [CVE-2021-21432] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2021-21432
+2026-08-26 11:36:36,698 - INFO - [CVE-2024-22199] - Finish eval and remove container run_evaluation_cve-2024-22199_tmp_04b73104
+2026-08-26 11:36:37,357 - INFO - [CVE-2024-22199] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2024-22199
+2026-08-26 11:38:46,474 - INFO - [CVE-2021-22538] - Finish eval and remove container run_evaluation_cve-2021-22538_tmp_bacaae8f
+2026-08-26 11:38:48,200 - INFO - [CVE-2021-22538] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2021-22538
+2026-08-26 11:41:02,642 - INFO - [CVE-2023-25173] - Finish eval and remove container run_evaluation_cve-2023-25173_tmp_4f7ce16c
+2026-08-26 11:41:04,171 - INFO - [CVE-2023-25173] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2023-25173
+2026-08-26 11:42:20,314 - INFO - [CVE-2019-19499] - Finish eval and remove container run_evaluation_cve-2019-19499_tmp_4b4faa74
+2026-08-26 11:42:22,664 - INFO - [CVE-2019-19499] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2019-19499
+2026-08-26 11:52:14,191 - INFO - [CVE-2022-39340] - Finish eval and remove container run_evaluation_cve-2022-39340_tmp_148bb967
+2026-08-26 11:52:15,255 - INFO - [CVE-2022-39340] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2022-39340
+2026-08-26 11:53:03,637 - INFO - [CVE-2022-23542] - Finish eval and remove container run_evaluation_cve-2022-23542_tmp_c09df56d
+2026-08-26 11:53:06,447 - INFO - [CVE-2022-23542] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2022-23542
+2026-08-26 11:54:53,433 - INFO - [CVE-2024-6257] - Finish eval and remove container run_evaluation_cve-2024-6257_tmp_634f8f29
+2026-08-26 11:54:54,436 - INFO - [CVE-2024-6257] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2024-6257
+2026-08-26 11:56:58,279 - INFO - [CVE-2024-24579] - Finish eval and remove container run_evaluation_cve-2024-24579_tmp_e997708f
+2026-08-26 11:56:59,317 - INFO - [CVE-2024-24579] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2024-24579
+2026-08-26 12:06:34,002 - INFO - [CVE-2022-36009] - Finish eval and remove container run_evaluation_cve-2022-36009_tmp_ddfcdbcc
+2026-08-26 12:06:34,618 - INFO - [CVE-2022-36009] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2022-36009
+2026-08-26 12:10:58,607 - INFO - [CVE-2021-26921] - Finish eval and remove container run_evaluation_cve-2021-26921_tmp_9c7f360f
+2026-08-26 12:11:00,626 - INFO - [CVE-2021-26921] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2021-26921
+2026-08-26 12:14:22,400 - INFO - [CVE-2024-45388] - Finish eval and remove container run_evaluation_cve-2024-45388_tmp_de846b77
+2026-08-26 12:14:23,405 - INFO - [CVE-2024-45388] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2024-45388
+2026-08-26 12:16:39,861 - INFO - [CVE-2025-46331] - Finish eval and remove container run_evaluation_cve-2025-46331_tmp_d077f7b0
+2026-08-26 12:16:41,340 - INFO - [CVE-2025-46331] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2025-46331
+2026-08-26 12:23:31,374 - INFO - [CVE-2020-11053] - Finish eval and remove container run_evaluation_cve-2020-11053_tmp_4767bd9c
+2026-08-26 12:23:32,073 - INFO - [CVE-2020-11053] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2020-11053
+2026-08-26 12:28:24,485 - INFO - [CVE-2024-52010] - Finish eval and remove container run_evaluation_cve-2024-52010_tmp_39601c16
+2026-08-26 12:28:28,280 - INFO - [CVE-2024-52010] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2024-52010
+2026-08-26 12:31:17,382 - INFO - [CVE-2022-24450] - Finish eval and remove container run_evaluation_cve-2022-24450_tmp_a3999097
+2026-08-26 12:31:18,378 - INFO - [CVE-2022-24450] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2022-24450
+2026-08-26 12:42:13,020 - INFO - [CVE-2022-31145] - Finish eval and remove container run_evaluation_cve-2022-31145_tmp_18cab67b
+2026-08-26 12:42:26,784 - INFO - [CVE-2022-31145] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2022-31145
+2026-08-26 12:42:32,318 - INFO - [CVE-2023-30625] - Finish eval and remove container run_evaluation_cve-2023-30625_tmp_d90dd5d9
+2026-08-26 12:42:35,180 - INFO - [CVE-2023-30625] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2023-30625
+2026-08-26 12:59:13,502 - INFO - [CVE-2023-22480] - Finish eval and remove container run_evaluation_cve-2023-22480_tmp_0e538f23
+2026-08-26 12:59:17,007 - INFO - [CVE-2023-22480] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2023-22480
+2026-08-26 13:01:42,260 - INFO - [CVE-2025-29778] - Finish eval and remove container run_evaluation_cve-2025-29778_tmp_800309d8
+2026-08-26 13:01:48,581 - INFO - [CVE-2025-29778] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2025-29778
+2026-08-26 13:03:45,707 - INFO - [CVE-2020-4053] - Finish eval and remove container run_evaluation_cve-2020-4053_tmp_d811aa65
+2026-08-26 13:03:47,438 - INFO - [CVE-2020-4053] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2020-4053
+2026-08-26 13:08:04,898 - INFO - [CVE-2024-56362] - Finish eval and remove container run_evaluation_cve-2024-56362_tmp_951066e5
+2026-08-26 13:08:06,511 - INFO - [CVE-2024-56362] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2024-56362
+2026-08-26 13:08:10,811 - INFO - [CVE-2021-3155] - Finish eval and remove container run_evaluation_cve-2021-3155_tmp_dddf104d
+2026-08-26 13:08:12,122 - INFO - [CVE-2021-3155] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2021-3155
+2026-08-26 13:12:02,602 - INFO - [CVE-2021-36157] - Finish eval and remove container run_evaluation_cve-2021-36157_tmp_99988355
+2026-08-26 13:12:05,281 - INFO - [CVE-2021-36157] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2021-36157
+2026-08-26 13:13:54,233 - INFO - [CVE-2023-24623] - Finish eval and remove container run_evaluation_cve-2023-24623_tmp_619645a6
+2026-08-26 13:13:54,830 - INFO - [CVE-2023-24623] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2023-24623
+2026-08-26 13:15:15,321 - INFO - [CVE-2024-5138] - Finish eval and remove container run_evaluation_cve-2024-5138_tmp_1dab1393
+2026-08-26 13:15:17,558 - INFO - [CVE-2024-5138] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2024-5138
+2026-08-26 13:17:15,931 - INFO - [CVE-2020-26294] - Finish eval and remove container run_evaluation_cve-2020-26294_tmp_bbe2c667
+2026-08-26 13:17:16,686 - INFO - [CVE-2020-26294] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2020-26294
+2026-08-26 13:18:42,438 - INFO - [CVE-2021-32783] - Finish eval and remove container run_evaluation_cve-2021-32783_tmp_856a8b03
+2026-08-26 13:18:44,597 - INFO - [CVE-2021-32783] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2021-32783
+2026-08-26 13:21:30,482 - INFO - [CVE-2023-40029] - Finish eval and remove container run_evaluation_cve-2023-40029_tmp_b2cce82d
+2026-08-26 13:21:34,335 - INFO - [CVE-2023-40029] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2023-40029
+2026-08-26 13:22:28,699 - INFO - [CVE-2024-27289] - Finish eval and remove container run_evaluation_cve-2024-27289_tmp_a8b5dfd8
+2026-08-26 13:22:29,442 - INFO - [CVE-2024-27289] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2024-27289
+2026-08-26 13:23:37,118 - INFO - [CVE-2021-29417] - Finish eval and remove container run_evaluation_cve-2021-29417_tmp_ccb3cb04
+2026-08-26 13:23:37,740 - INFO - [CVE-2021-29417] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2021-29417
+2026-08-26 13:24:18,832 - INFO - [CVE-2020-15233] - Finish eval and remove container run_evaluation_cve-2020-15233_tmp_c8b8f67e
+2026-08-26 13:24:19,932 - INFO - [CVE-2020-15233] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2020-15233
+2026-08-26 13:26:38,734 - INFO - [CVE-2018-12976] - Finish eval and remove container run_evaluation_cve-2018-12976_tmp_a9626e86
+2026-08-26 13:26:42,658 - INFO - [CVE-2018-12976] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2018-12976
+2026-08-26 13:31:00,882 - INFO - [CVE-2024-54132] - Finish eval and remove container run_evaluation_cve-2024-54132_tmp_92f5e162
+2026-08-26 13:31:02,694 - INFO - [CVE-2024-54132] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2024-54132
+2026-08-26 13:35:05,467 - INFO - [CVE-2023-50726] - Finish eval and remove container run_evaluation_cve-2023-50726_tmp_33491355
+2026-08-26 13:35:08,713 - INFO - [CVE-2023-50726] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2023-50726
+2026-08-26 13:35:56,064 - INFO - [CVE-2022-1992] - Finish eval and remove container run_evaluation_cve-2022-1992_tmp_867eb706
+2026-08-26 13:35:57,471 - INFO - [CVE-2022-1992] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2022-1992
+2026-08-26 13:37:17,761 - INFO - [CVE-2022-24825] - Finish eval and remove container run_evaluation_cve-2022-24825_tmp_ac443645
+2026-08-26 13:37:18,432 - INFO - [CVE-2022-24825] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2022-24825
+2026-08-26 13:44:16,989 - INFO - [CVE-2021-32701] - Finish eval and remove container run_evaluation_cve-2021-32701_tmp_873f78b9
+2026-08-26 13:44:18,237 - INFO - [CVE-2021-32701] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2021-32701
+2026-08-26 13:47:20,362 - INFO - [CVE-2024-10220] - Finish eval and remove container run_evaluation_cve-2024-10220_tmp_b154c45a
+2026-08-26 13:47:25,658 - INFO - [CVE-2024-10220] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2024-10220
+2026-08-26 13:53:48,432 - INFO - [CVE-2024-45043] - Finish eval and remove container run_evaluation_cve-2024-45043_tmp_8bde9828
+2026-08-26 13:53:54,110 - INFO - [CVE-2024-45043] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2024-45043
+2026-08-26 13:56:55,627 - INFO - [CVE-2024-24747] - Finish eval and remove container run_evaluation_cve-2024-24747_tmp_d925a5cd
+2026-08-26 13:56:57,510 - INFO - [CVE-2024-24747] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2024-24747
+2026-08-26 13:59:59,851 - INFO - [CVE-2022-35936] - Finish eval and remove container run_evaluation_cve-2022-35936_tmp_821d3acd
+2026-08-26 14:00:02,147 - INFO - [CVE-2022-35936] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2022-35936
+2026-08-26 14:01:07,182 - INFO - [CVE-2022-36103] - Finish eval and remove container run_evaluation_cve-2022-36103_tmp_3488e793
+2026-08-26 14:01:27,343 - INFO - [CVE-2022-36103] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2022-36103
+2026-08-26 14:02:06,377 - INFO - [CVE-2023-26125] - Finish eval and remove container run_evaluation_cve-2023-26125_tmp_c2857f33
+2026-08-26 14:02:07,169 - INFO - [CVE-2023-26125] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2023-26125
+2026-08-26 14:03:54,193 - INFO - [CVE-2025-24976] - Finish eval and remove container run_evaluation_cve-2025-24976_tmp_24b24bde
+2026-08-26 14:03:56,982 - INFO - [CVE-2025-24976] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2025-24976
+2026-08-26 14:04:29,807 - INFO - [CVE-2020-4037] - Finish eval and remove container run_evaluation_cve-2020-4037_tmp_aa2f7a87
+2026-08-26 14:04:31,146 - INFO - [CVE-2020-4037] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2020-4037
+2026-08-26 14:06:26,197 - INFO - [CVE-2022-2024] - Finish eval and remove container run_evaluation_cve-2022-2024_tmp_3d591890
+2026-08-26 14:06:33,624 - INFO - [CVE-2022-2024] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2022-2024
+2026-08-26 14:06:37,932 - INFO - [CVE-2022-29188] - Finish eval and remove container run_evaluation_cve-2022-29188_tmp_33045c93
+2026-08-26 14:06:38,931 - INFO - [CVE-2022-29188] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2022-29188
+2026-08-26 14:06:38,933 - INFO - [CVE-2023-52081] - Finish eval and remove container run_evaluation_cve-2023-52081_tmp_5d6d0dbf
+2026-08-26 14:06:47,614 - INFO - [CVE-2023-52081] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2023-52081
+2026-08-26 14:06:55,959 - INFO - [CVE-2021-21411] - Finish eval and remove container run_evaluation_cve-2021-21411_tmp_7af3b7a9
+2026-08-26 14:06:57,172 - INFO - [CVE-2021-21411] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2021-21411
+2026-08-26 14:09:41,747 - INFO - [CVE-2022-23536] - Finish eval and remove container run_evaluation_cve-2022-23536_tmp_89350862
+2026-08-26 14:09:44,443 - INFO - [CVE-2022-23536] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2022-23536
+2026-08-26 14:17:23,322 - INFO - [CVE-2025-24882] - Finish eval and remove container run_evaluation_cve-2025-24882_tmp_457ddcb6
+2026-08-26 14:17:25,456 - INFO - [CVE-2025-24882] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2025-24882
+2026-08-26 14:17:55,418 - INFO - [CVE-2023-23947] - Finish eval and remove container run_evaluation_cve-2023-23947_tmp_3802e245
+2026-08-26 14:17:59,237 - INFO - [CVE-2023-23947] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2023-23947
+2026-08-26 14:20:24,308 - INFO - [CVE-2022-23857] - Finish eval and remove container run_evaluation_cve-2022-23857_tmp_548c0cc1
+2026-08-26 14:20:25,612 - INFO - [CVE-2022-23857] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2022-23857
+2026-08-26 14:20:38,812 - INFO - [CVE-2023-45128] - Finish eval and remove container run_evaluation_cve-2023-45128_tmp_0375d32c
+2026-08-26 14:20:39,588 - INFO - [CVE-2023-45128] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2023-45128
+2026-08-26 14:22:11,525 - INFO - [CVE-2024-43405] - Finish eval and remove container run_evaluation_cve-2024-43405_tmp_cbe8dd06
+2026-08-26 14:22:12,864 - INFO - [CVE-2024-43405] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2024-43405
+2026-08-26 14:28:03,518 - INFO - [CVE-2022-4643] - Finish eval and remove container run_evaluation_cve-2022-4643_tmp_39321878
+2026-08-26 14:28:04,920 - INFO - [CVE-2022-4643] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2022-4643
+2026-08-26 14:33:16,983 - INFO - [CVE-2022-31130] - Finish eval and remove container run_evaluation_cve-2022-31130_tmp_40de4059
+2026-08-26 14:33:23,852 - INFO - [CVE-2022-31130] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2022-31130
+2026-08-26 14:35:53,748 - INFO - [CVE-2021-43798] - Finish eval and remove container run_evaluation_cve-2021-43798_tmp_568e210f
+2026-08-26 14:36:26,777 - INFO - [CVE-2021-43798] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2021-43798
+2026-08-26 14:38:13,385 - INFO - [CVE-2023-41891] - Finish eval and remove container run_evaluation_cve-2023-41891_tmp_072c9d09
+2026-08-26 14:38:16,475 - INFO - [CVE-2023-41891] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2023-41891
+2026-08-26 14:42:46,862 - INFO - [CVE-2021-41803] - Finish eval and remove container run_evaluation_cve-2021-41803_tmp_9f1e9c4b
+2026-08-26 14:42:53,145 - INFO - [CVE-2021-41803] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2021-41803
+2026-08-26 14:44:55,305 - INFO - [CVE-2020-29529] - Finish eval and remove container run_evaluation_cve-2020-29529_tmp_a315a4db
+2026-08-26 14:44:55,835 - INFO - [CVE-2020-29529] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2020-29529
+2026-08-26 14:44:58,068 - INFO - [CVE-2024-47616] - Finish eval and remove container run_evaluation_cve-2024-47616_tmp_f98576d3
+2026-08-26 14:45:01,002 - INFO - [CVE-2024-47616] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2024-47616
+2026-08-26 14:45:01,020 - INFO - [CVE-2024-1724] - Finish eval and remove container run_evaluation_cve-2024-1724_tmp_ef2a67af
+2026-08-26 14:45:03,529 - INFO - [CVE-2024-1724] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2024-1724
+2026-08-26 14:49:03,719 - INFO - [CVE-2022-24738] - Finish eval and remove container run_evaluation_cve-2022-24738_tmp_4ff9a9aa
+2026-08-26 14:49:05,109 - INFO - [CVE-2022-24738] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2022-24738
+2026-08-26 14:51:51,111 - INFO - [CVE-2022-3920] - Finish eval and remove container run_evaluation_cve-2022-3920_tmp_1f44f687
+2026-08-26 14:51:54,153 - INFO - [CVE-2022-3920] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2022-3920
+2026-08-26 14:54:56,894 - INFO - [CVE-2023-5122] - Finish eval and remove container run_evaluation_cve-2023-5122_tmp_88f94f54
+2026-08-26 14:54:58,757 - INFO - [CVE-2023-5122] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2023-5122
+2026-08-26 14:54:58,759 - INFO - [CVE-2023-25168] - Finish eval and remove container run_evaluation_cve-2023-25168_tmp_02aa8272
+2026-08-26 14:54:59,778 - INFO - [CVE-2023-25168] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2023-25168
+2026-08-26 15:00:07,207 - INFO - [CVE-2022-46146] - Finish eval and remove container run_evaluation_cve-2022-46146_tmp_cd59e847
+2026-08-26 15:00:08,215 - INFO - [CVE-2022-46146] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2022-46146
+2026-08-26 15:04:33,531 - INFO - [CVE-2025-24366] - Finish eval and remove container run_evaluation_cve-2025-24366_tmp_50d43aea
+2026-08-26 15:04:47,335 - INFO - [CVE-2025-24366] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2025-24366
+2026-08-26 15:07:54,708 - INFO - [CVE-2024-52309] - Finish eval and remove container run_evaluation_cve-2024-52309_tmp_b91f6595
+2026-08-26 15:07:58,326 - INFO - [CVE-2024-52309] - Successfully removed Docker image: ghcr.io/patcheval-cve/patcheval-cve:cve-2024-52309
+2026-08-26 15:07:58,333 - INFO - [SUMMARY] - --- FINAL EVALUATION REPORT ---
+2026-08-26 15:07:58,333 - INFO - [SUMMARY] - ============================================================
+2026-08-26 15:07:58,333 - INFO - [SUMMARY] -                    PoC Evaluation Summary                   
+2026-08-26 15:07:58,333 - INFO - [SUMMARY] - ============================================================
+2026-08-26 15:07:58,333 - INFO - [SUMMARY] - Total Cases Evaluated: 73
+2026-08-26 15:07:58,333 - INFO - [SUMMARY] - Total Successful Repairs: 21
+2026-08-26 15:07:58,333 - INFO - [SUMMARY] - Overall Pass Rate: 28.77%
+2026-08-26 15:07:58,333 - INFO - [SUMMARY] - ------------------------------------------------------------
+2026-08-26 15:07:58,333 - INFO - [SUMMARY] - Success Breakdown by Language:
+2026-08-26 15:07:58,333 - INFO - [SUMMARY] -   - Go: 21
+2026-08-26 15:07:58,333 - INFO - [SUMMARY] - ============================================================
+2026-08-26 15:07:58,333 - INFO - [SUMMARY] - ============================================================
+2026-08-26 15:07:58,333 - INFO - [SUMMARY] -                       Failure Analysis                      
+2026-08-26 15:07:58,333 - INFO - [SUMMARY] - ============================================================
+2026-08-26 15:07:58,333 - INFO - [SUMMARY] - - Go_compilation_fail: 18
+2026-08-26 15:07:58,334 - INFO - [SUMMARY] - - Go_validation_fail: 34
+2026-08-26 15:07:58,334 - INFO - [SUMMARY] - 
+2026-08-26 15:07:58,334 - INFO - [CLEANUP] - Final cleanup of any remaining Docker images...

@@ -1,0 +1,18 @@
+2026-08-20 16:02:53,274 - INFO - [SETUP] - Namespace(output='results/gogemma_poc', patch_file='/home/txiieyy/Downloads/hi/patcheval/patcheval/exp_agent/eval_inputs/gogemma_poc.jsonl', input_file='/home/txiieyy/Downloads/hi/patcheval/patcheval/exp_agent/../datasets/patcheval_verified_go.json', log_level='INFO', max_workers=4, cves=None, skip_existing=True, limit=10, remove_images=True)
+2026-08-20 16:02:53,280 - INFO - [SUMMARY] - --- FINAL EVALUATION REPORT ---
+2026-08-20 16:02:53,280 - INFO - [SUMMARY] - ============================================================
+2026-08-20 16:02:53,280 - INFO - [SUMMARY] -                    PoC Evaluation Summary                   
+2026-08-20 16:02:53,280 - INFO - [SUMMARY] - ============================================================
+2026-08-20 16:02:53,280 - INFO - [SUMMARY] - Total Cases Evaluated: 0
+2026-08-20 16:02:53,280 - INFO - [SUMMARY] - Total Successful Repairs: 0
+2026-08-20 16:02:53,280 - INFO - [SUMMARY] - Overall Pass Rate: 0.00%
+2026-08-20 16:02:53,280 - INFO - [SUMMARY] - ------------------------------------------------------------
+2026-08-20 16:02:53,280 - INFO - [SUMMARY] - Success Breakdown by Language:
+2026-08-20 16:02:53,280 - INFO - [SUMMARY] -   None
+2026-08-20 16:02:53,280 - INFO - [SUMMARY] - ============================================================
+2026-08-20 16:02:53,280 - INFO - [SUMMARY] - ============================================================
+2026-08-20 16:02:53,280 - INFO - [SUMMARY] -                       Failure Analysis                      
+2026-08-20 16:02:53,280 - INFO - [SUMMARY] - ============================================================
+2026-08-20 16:02:53,280 - INFO - [SUMMARY] - No failures recorded.
+2026-08-20 16:02:53,280 - INFO - [SUMMARY] - 
+2026-08-20 16:02:53,281 - INFO - [CLEANUP] - Cleaning up Docker images used in this run...
