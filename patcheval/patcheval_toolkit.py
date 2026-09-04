@@ -839,6 +839,240 @@ def cmd_extract_patch(args):
 
 
 # =====================================================================
+# save-eval — lưu từng CVE thành file JSON riêng (pass/ fail/)
+#             + results.json tổng hợp cho benchmarking nhiều model
+#
+# Cấu trúc output:
+#   <eval_dir>/
+#   ├── pass/
+#   │   ├── CVE-XXXX-XXXX.json
+#   │   └── ...
+#   ├── fail/
+#   │   ├── CVE-YYYY-YYYY.json
+#   │   └── ...
+#   └── results.json   ← danh sách tất cả CVE + PASS/FAIL + metadata
+#
+# Mỗi CVE JSON chứa:
+#   cve_id, language, model, status,
+#   generated_patch, ground_truth_patch,
+#   evaluation: {poc_pass, compile, validation_type},
+#   failure_reason (nếu FAIL),
+#   timestamp
+# =====================================================================
+
+def cmd_save_eval(args):
+    import datetime
+
+    patch_file = args.patch_file
+    eval_dir   = Path(args.eval_dir)
+    dataset    = args.dataset
+    model_id   = getattr(args, "model", "unknown")
+    language   = getattr(args, "language", "unknown")
+    eda_dir    = getattr(args, "eda_dir", None)
+
+    # ── Load generated patches ─────────────────────────────────────────────────
+    patches = {}
+    if os.path.isfile(patch_file):
+        with open(patch_file, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                rec = json.loads(line)
+                cve = rec.get("cve") or rec.get("cve_id", "")
+                patches[cve] = rec
+    else:
+        print(f"[save-eval] WARN: patch file not found: {patch_file}")
+
+    # ── Load dataset for ground-truth patches and original code ───────────────
+    ground_truth = {}
+    if os.path.isfile(dataset):
+        with open(dataset, "r", encoding="utf-8") as f:
+            ds = json.load(f)
+        for item in ds:
+            cve_id = item.get("cve_id", "")
+            # Collect ground-truth patch lines from vul_func
+            gt_lines = []
+            for vf in item.get("vul_func", []):
+                for loc in vf.get("vul_localization", []):
+                    gt_lines.extend(loc.get("patch_lines", []))
+            ground_truth[cve_id] = {
+                "ground_truth_patch": "\n".join(gt_lines),
+                "original_code": item.get("vul_func", [{}])[0].get("snippet", "") if item.get("vul_func") else "",
+            }
+
+    # ── Read evaluation log directory for PASS/FAIL per CVE ──────────────────
+    logs_dir = eval_dir / "logs"
+    cve_results = {}
+    if logs_dir.is_dir():
+        for cve_dir in sorted(logs_dir.iterdir()):
+            if not cve_dir.is_dir():
+                continue
+            cve_id = cve_dir.name
+            success_log = cve_dir / "success_output.log"
+            error_log   = cve_dir / "error_output.log"
+
+            if success_log.exists():
+                status = "PASS"
+                log_text = success_log.read_text(encoding="utf-8", errors="replace")
+                failure_reason = None
+                # Detect sub-stages from log text
+                compile_pass = "compilation_fail" not in log_text
+                poc_pass     = True
+            else:
+                status = "FAIL"
+                log_text = error_log.read_text(encoding="utf-8", errors="replace") if error_log.exists() else ""
+                # Detect failure type
+                if "apply_fail" in log_text:
+                    failure_reason = "Patch does not apply (apply_fail)"
+                    compile_pass   = False
+                    poc_pass       = False
+                elif "compilation_fail" in log_text:
+                    failure_reason = "Patch compiles but contains syntax/compilation error"
+                    compile_pass   = False
+                    poc_pass       = False
+                elif "validation_fail" in log_text:
+                    failure_reason = "Patch compiles but does not fix vulnerability (validation_fail)"
+                    compile_pass   = True
+                    poc_pass       = False
+                else:
+                    failure_reason = "Unknown failure — check error_output.log"
+                    compile_pass   = None
+                    poc_pass       = False
+
+            # Detect validation_type string from log
+            validation_type = None
+            for line in log_text.splitlines():
+                if "[Validation TYPE]:" in line:
+                    validation_type = line.split("[Validation TYPE]:")[1].strip()
+                    break
+
+            cve_results[cve_id] = {
+                "status":          status,
+                "compile":         compile_pass,
+                "poc_pass":        poc_pass,
+                "validation_type": validation_type,
+                "failure_reason":  failure_reason,
+            }
+
+    # Also include patches that have no log yet (e.g. partial runs)
+    for cve_id in patches:
+        if cve_id not in cve_results:
+            cve_results[cve_id] = {
+                "status":          "UNKNOWN",
+                "compile":         None,
+                "poc_pass":        None,
+                "validation_type": None,
+                "failure_reason":  "No evaluation log found",
+            }
+
+    # ── Build output directories ───────────────────────────────────────────────
+    pass_dir = eval_dir / "pass"
+    fail_dir = eval_dir / "fail"
+    pass_dir.mkdir(parents=True, exist_ok=True)
+    fail_dir.mkdir(parents=True, exist_ok=True)
+
+    timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    results_summary = []
+
+    n_pass = 0
+    n_fail = 0
+    n_unknown = 0
+
+    for cve_id, res in sorted(cve_results.items()):
+        patch_rec = patches.get(cve_id, {})
+        gt_rec    = ground_truth.get(cve_id, {})
+
+        status = res["status"]
+
+        cve_doc = {
+            "cve_id":           cve_id,
+            "language":         language,
+            "model":            model_id,
+            "status":           status,
+            "original_code":    gt_rec.get("original_code", ""),
+            "generated_patch":  patch_rec.get("fix_patch", ""),
+            "ground_truth_patch": gt_rec.get("ground_truth_patch", ""),
+            "evaluation": {
+                "poc_pass":        res["poc_pass"],
+                "compile":         res["compile"],
+                "validation_type": res["validation_type"],
+            },
+            "timestamp": timestamp,
+        }
+        if status == "FAIL":
+            cve_doc["failure_reason"] = res["failure_reason"]
+
+        # Write per-CVE JSON
+        safe_name = cve_id.replace("/", "_").replace("\\", "_") + ".json"
+        if status == "PASS":
+            out_path = pass_dir / safe_name
+            n_pass += 1
+        elif status == "FAIL":
+            out_path = fail_dir / safe_name
+            n_fail += 1
+        else:
+            out_path = eval_dir / f"unknown_{safe_name}"
+            n_unknown += 1
+
+        with open(out_path, "w", encoding="utf-8") as f:
+            json.dump(cve_doc, f, indent=2, ensure_ascii=False)
+
+        results_summary.append({
+            "cve_id":   cve_id,
+            "status":   status,
+            "language": language,
+            "model":    model_id,
+        })
+
+    # ── Write results.json (compact summary for quick stats + Pandas) ─────────
+    total = n_pass + n_fail + n_unknown
+    pass_rate = round(n_pass / total * 100, 2) if total > 0 else 0.0
+
+    results_json = {
+        "model":     model_id,
+        "language":  language,
+        "timestamp": timestamp,
+        "stats": {
+            "total":     total,
+            "pass":      n_pass,
+            "fail":      n_fail,
+            "unknown":   n_unknown,
+            "pass_rate": f"{pass_rate:.2f}%",
+        },
+        "results": results_summary,
+    }
+    results_path = eval_dir / "results.json"
+    with open(results_path, "w", encoding="utf-8") as f:
+        json.dump(results_json, f, indent=2, ensure_ascii=False)
+
+    # ── Print summary ──────────────────────────────────────────────────────────
+    print("")
+    print("━" * 60)
+    print(f"  save-eval complete: {eval_dir}")
+    print("━" * 60)
+    print(f"  Model    : {model_id}")
+    print(f"  Language : {language}")
+    print(f"  Total    : {total}")
+    print(f"  PASS     : {n_pass}  →  {pass_dir}")
+    print(f"  FAIL     : {n_fail}  →  {fail_dir}")
+    if n_unknown:
+        print(f"  UNKNOWN  : {n_unknown}")
+    print(f"  Pass Rate: {pass_rate:.2f}%")
+    print(f"  results.json → {results_path}")
+    print("━" * 60)
+
+    # ── Also call legacy EDA save if eda-dir provided ─────────────────────────
+    if eda_dir:
+        eda_path = Path(eda_dir)
+        eda_path.mkdir(parents=True, exist_ok=True)
+        eda_out = eda_path / f"eval_{language}_{model_id.replace('/', '_').replace(':', '_')}.json"
+        with open(eda_out, "w", encoding="utf-8") as f:
+            json.dump(results_json, f, indent=2, ensure_ascii=False)
+        print(f"  EDA export → {eda_out}")
+
+
+# =====================================================================
 # CLI
 # =====================================================================
 
@@ -884,6 +1118,18 @@ def build_parser():
     p_ep.add_argument("cve_id")
     p_ep.add_argument("out_path", nargs="?", default="test.patch")
     p_ep.set_defaults(func=cmd_extract_patch)
+
+    p_se = sub.add_parser(
+        "save-eval",
+        help="Luu tung CVE thanh JSON rieng (pass/ fail/) + results.json tong hop",
+    )
+    p_se.add_argument("--patch-file",  required=True,  help="Duong dan den file .jsonl chua cac patch da sinh")
+    p_se.add_argument("--eval-dir",    required=True,  help="Thu muc chua ket qua evaluation (co sub-dir logs/)")
+    p_se.add_argument("--dataset",     required=True,  help="Dataset JSON goc (de lay ground-truth patch)")
+    p_se.add_argument("--model",       default="unknown", help="ID model (vi du: deepseek/deepseek-v4-0731)")
+    p_se.add_argument("--language",    default="unknown", help="Ngon ngu: go | javascript | python")
+    p_se.add_argument("--eda-dir",     default=None,   help="Thu muc EDA de export them file tong hop (tuy chon)")
+    p_se.set_defaults(func=cmd_save_eval)
 
     return ap
 

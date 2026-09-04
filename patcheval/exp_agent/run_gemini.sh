@@ -233,6 +233,7 @@ run_poc() {
   else
     echo "[✓] No stale Docker containers to remove."
   fi
+  docker system prune -f 2>/dev/null || true
 
   echo ""
   echo "━━━ RESULTS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
